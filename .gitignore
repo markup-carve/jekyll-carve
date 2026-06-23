@@ -1,0 +1,12 @@
+*.gem
+.bundle/
+vendor/bundle/
+Gemfile.lock
+pkg/
+tmp/
+coverage/
+
+# Jekyll build output of the example site
+example/_site/
+example/.jekyll-cache/
+example/.jekyll-metadata

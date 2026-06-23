@@ -1,0 +1,11 @@
+---
+layout: default
+title: Home
+---
+# Welcome to *Carve*
+
+This is /italic/ and *bold* text rendered by the native Carve engine.
+
+- Apple
+- Banana
+- Cherry

@@ -1,0 +1,9 @@
+# frozen_string_literal: true
+
+source "https://rubygems.org"
+
+gem "jekyll", ">= 4.0"
+# The carve engine gem (native Ruby bindings over carve-rs).
+gem "carve", ">= 0.1.0"
+# The plugin under development, loaded from the parent directory.
+gem "jekyll-carve", path: ".."

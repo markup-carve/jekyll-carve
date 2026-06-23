@@ -1,0 +1,15 @@
+title: Carve + Jekyll Example
+description: Demonstrates the jekyll-carve converter.
+
+plugins:
+  - jekyll-carve
+
+# Carve engine options consumed by Jekyll::Carve::Converter.
+carve:
+  extensions:
+    - heading_permalinks
+
+# Keep the build minimal and deterministic.
+exclude:
+  - Gemfile
+  - Gemfile.lock
