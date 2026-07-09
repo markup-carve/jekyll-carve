@@ -15,7 +15,7 @@ Add both gems to your site's `Gemfile`:
 ```ruby
 # Gemfile
 gem "jekyll-carve"
-gem "carve" # the native Carve engine (a runtime dependency, listed for clarity)
+gem "carve-lang" # the native Carve engine (a runtime dependency, listed for clarity)
 ```
 
 ```sh
