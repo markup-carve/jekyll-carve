@@ -8,9 +8,9 @@ Gem::Specification.new do |spec|
   spec.authors = ["markup-carve"]
   spec.summary = "Jekyll converter for the Carve markup language."
   spec.description = <<~DESC.strip
-    A Jekyll plugin that renders Carve (.crv / .carve) pages to HTML. It is a
-    thin Jekyll::Converter over the native `carve` gem (Carve.to_html); no
-    parser is reimplemented. Mirrors how `jekyll-djot` integrates Djot.
+    A Jekyll plugin that renders Carve (.crv) pages to HTML. It is a
+    thin Jekyll::Converter over the native `carve-lang` gem (Carve.to_html);
+    no parser is reimplemented.
   DESC
   spec.homepage = "https://github.com/markup-carve/jekyll-carve"
   spec.license = "MIT"

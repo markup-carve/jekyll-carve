@@ -9,14 +9,14 @@ module Jekyll
   module Carve
     # Jekyll converter for the Carve markup language.
     #
-    # Registers the `.crv` and `.carve` file extensions and renders their
-    # bodies to HTML by delegating to the native `carve` gem (Carve.to_html).
-    # No parsing is reimplemented here; this is a thin Jekyll::Converter
-    # adapter over the engine, mirroring how `jekyll-djot` wraps djotter.
+    # Registers the `.crv` file extension and renders Carve
+    # bodies to HTML by delegating to the native `carve-lang` gem
+    # (Carve.to_html). No parsing is reimplemented here; this is a thin
+    # Jekyll::Converter adapter over the engine.
     class Converter < Jekyll::Converter
       # File extensions this converter handles (lowercased, with and without
       # the leading dot so callers may pass either form).
-      EXTENSIONS = %w[.crv .carve].freeze
+      EXTENSIONS = %w[.crv].freeze
 
       safe true
       priority :low

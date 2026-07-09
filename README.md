@@ -2,11 +2,10 @@
 
 A [Jekyll](https://jekyllrb.com) converter plugin for the
 [Carve](https://github.com/markup-carve/carve) markup language. It renders
-`.crv` / `.carve` pages to HTML by delegating to the native
-[`carve`](https://github.com/markup-carve/carve-rb) gem (`Carve.to_html`). No
+`.crv` pages to HTML by delegating to the native
+[`carve-lang`](https://github.com/markup-carve/carve-rb) gem (`Carve.to_html`). No
 parser is reimplemented here; this is a thin `Jekyll::Converter` adapter over
-the engine, mirroring how [`jekyll-djot`](https://github.com/jgm/djot) integrates
-Djot.
+the engine.
 
 ## Install
 
@@ -30,7 +29,7 @@ plugins:
 ```
 
 > [!NOTE]
-> The `carve` gem ships a Rust native extension and is compiled at install
+> The `carve-lang` gem ships a Rust native extension and is compiled at install
 > time. It requires a Rust toolchain (`cargo`) and Ruby development headers.
 > See the carve-rb README for build notes (including the libclang/`stdarg.h`
 > workaround on some systems).
@@ -54,7 +53,7 @@ in `Carve::EXTENSIONS`; an unknown name raises `ArgumentError` at build time.
 
 ## Usage
 
-Create a page with a `.crv` (or `.carve`) extension. It MUST begin with Jekyll
+Create a page with a `.crv` extension. It MUST begin with Jekyll
 YAML front matter, and the Carve body follows below:
 
 ```text
@@ -106,7 +105,7 @@ has already removed the leading block by the time Carve runs.
 
 | Method | Behavior |
 | ------ | -------- |
-| `matches(ext)` | `true` for `.crv` / `.carve` (with or without the leading dot, case-insensitive), `false` otherwise. |
+| `matches(ext)` | `true` for `.crv` (with or without the leading dot, case-insensitive), `false` otherwise. |
 | `output_ext(ext)` | `".html"` (includes the dot so Jekyll emits `page.html`). |
 | `convert(content)` | `Carve.to_html(content, extensions: configured)` - the rendered HTML. |
 | `carve_extensions` | The extension list read from `carve.extensions` in `_config.yml` (empty by default). |

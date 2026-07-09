@@ -16,8 +16,8 @@ RSpec.describe Jekyll::Carve::Converter do
       expect(converter.matches("crv")).to be(true)
     end
 
-    it "matches the .carve extension" do
-      expect(converter.matches(".carve")).to be(true)
+    it "does not match the .carve extension" do
+      expect(converter.matches(".carve")).to be(false)
     end
 
     it "is case-insensitive" do
