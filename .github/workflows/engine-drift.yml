@@ -1,0 +1,77 @@
+name: Engine drift
+
+# The engine is a GIT DEPENDENCY pinned to a revision. A pin makes drift
+# deliberate, but nothing notices when the pin has fallen behind - and a
+# push-only CI reports the state of the day someone last touched the repo.
+#
+# That is not hypothetical across the org. carve-hexapdf has the identical
+# Gemfile: two AST renames landed upstream, it was not pushed for five days, and
+# its badge stayed green on a stale run while a fresh install rendered bold text
+# unstyled and dropped every footnote marker (carve-hexapdf#10). The pin from #1
+# stops that happening by surprise; this job is what tells you the pin is old
+# before someone else finds out.
+#
+# It reports rather than gates on lag: the engine moving is not a defect here,
+# and a job that goes red for something outside the repository teaches people to
+# ignore it. It DOES fail when the pinned revision is not a real commit on the
+# engine's main - a typo, a force-pushed branch, a revision that no longer
+# exists - because that is a broken build waiting to happen.
+
+on:
+  schedule:
+    # 05:00 UTC daily, after the engine repos have had a night to settle.
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out carve-rb
+        uses: actions/checkout@v4
+        with:
+          repository: markup-carve/carve-rb
+          path: carve-rb
+          fetch-depth: 0
+
+      - name: Compare the pinned revision against carve-rb main
+        run: |
+          set -euo pipefail
+          rev="$(grep -oE 'ref: "[0-9a-f]{40}"' Gemfile | grep -oE '[0-9a-f]{40}' | head -1)"
+          if [ -z "${rev}" ]; then
+            echo "::error::no 40-hex ref found in Gemfile; the engine dependency is not pinned"
+            exit 1
+          fi
+          if ! git -C carve-rb cat-file -e "${rev}^{commit}" 2>/dev/null; then
+            echo "::error::Gemfile pins ${rev}, which is not a commit in carve-rb"
+            exit 1
+          fi
+          if ! git -C carve-rb merge-base --is-ancestor "${rev}" origin/main; then
+            echo "::error::carve-rb ${rev} is not on main, so the pin came from an unmerged or rewritten branch"
+            exit 1
+          fi
+          behind="$(git -C carve-rb rev-list --count "${rev}..origin/main")"
+          echo "pinned engine: carve-rb ${rev} ($(git -C carve-rb log -1 --format=%s "${rev}"))"
+          echo "carve-rb main is ${behind} commit(s) ahead"
+          if [ "${behind}" -gt 0 ]; then
+            echo "::warning::the pinned engine is ${behind} carve-rb commit(s) behind main"
+          fi
+
+  # The pin makes the ENGINE deterministic; everything else in the bundle still
+  # floats, and this repo has no committed lockfile. A scheduled run of the real
+  # suite is what catches a transitive gem changing under it.
+  suite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install libclang (rb-sys bindgen)
+        run: sudo apt-get update && sudo apt-get install -y libclang-dev
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+      - name: Run tests
+        run: bundle exec rspec
