@@ -96,22 +96,6 @@ jobs:
             end
           '
 
-      # LAST, not first. This started the job, and on the first dispatch it
-      # failed before the gem was built - so the run proved the credential
-      # missing and nothing else, skipping the very step a rehearsal exists to
-      # exercise. A missing key must still fail the run, but everything that
-      # can be checked without it should be checked first.
-      #
-      # Presence only, deliberately. A RubyGems API key scoped to push_rubygem
-      # cannot read /api/v1/profile/me.json - it answers 401 exactly as a bad
-      # key does - so a validity check built on that endpoint would fail the
-      # least-privilege key it should encourage. An honest gap beats a wrong
-      # gate.
-      - name: The RubyGems credential is present
-        run: |
-          [ -n "${{ secrets.RUBYGEMS_API_KEY }}" ] \
-            || { echo "::error::RUBYGEMS_API_KEY is not available to this repository"; exit 1; }
-
       - uses: actions/upload-artifact@v4
         with:
           name: gem
@@ -121,16 +105,36 @@ jobs:
     name: Publish to RubyGems
     runs-on: ubuntu-latest
     needs: [verify]
+    # OIDC TRUSTED PUBLISHING, not an API key. GitHub mints a short-lived token
+    # naming this repository and workflow, RubyGems exchanges it for a
+    # credential valid for minutes, and the long-lived key leaves the
+    # repository entirely - a leaked key can push any gem the account owns, and
+    # there is now nothing to leak.
+    #
+    # Proven on carve-hexapdf first, which is where the sharp edge showed up: a
+    # trusted publisher cannot claim a gem NAME that has never been published,
+    # so that gem needed one manual first push before OIDC could take over.
+    # jekyll-carve is already on RubyGems, so its publisher can claim it and the
+    # first OIDC push is the next release.
+    #
+    # `id-token: write` is required and never granted implicitly.
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/download-artifact@v4
         with:
           name: gem
 
+      # Skipped on a dispatch: a rehearsal must not mint a publishing
+      # credential, and has nothing to authenticate.
+      - name: Exchange the OIDC token for a RubyGems credential
+        if: github.event_name != 'workflow_dispatch'
+        uses: rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a # v2.1.0
+
       # Pushes the artifact the gate verified rather than building a second
       # copy, so what RubyGems serves is the bytes that rendered the probe.
       - name: Publish to RubyGems
-        env:
-          GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "::notice::rehearsal - nothing was published to RubyGems"
