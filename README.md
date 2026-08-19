@@ -116,7 +116,3 @@ has already removed the leading block by the time Carve runs.
 bundle install
 rspec            # run the converter unit tests
 ```
-
-## License
-
-MIT, markup-carve.
