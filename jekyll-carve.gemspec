@@ -22,6 +22,14 @@ Gem::Specification.new do |spec|
     "LICENSE"
   ]
   spec.require_paths = ["lib"]
+  # Every push must come from an account with MFA enabled. Combined with the
+  # trusted publisher on rubygems.org, releases are authorized by the
+  # provenance of the CI request rather than by a stored key, and a leaked
+  # credential cannot publish this gem at all.
+  spec.metadata = {
+    "rubygems_mfa_required" => "true",
+  }
+
 
   # >= 0.1.1, not 0.1.0. carve-lang 0.1.0 predates the Carve 0.1.3 security
   # release and renders a list-valued URL attribute unsanitized; a floor of
