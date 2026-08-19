@@ -42,16 +42,6 @@ jobs:
             || { echo "::error::CHANGELOG.md has no section for $tag"; exit 1; }
           echo "version $ver"
 
-      # Presence only, deliberately. A RubyGems API key scoped to push_rubygem
-      # cannot read /api/v1/profile/me.json - it answers 401 exactly as a bad
-      # key does - so a validity check built on that endpoint would fail the
-      # least-privilege key it should encourage. An honest gap beats a wrong
-      # gate.
-      - name: The RubyGems credential is present
-        run: |
-          [ -n "${{ secrets.RUBYGEMS_API_KEY }}" ] \
-            || { echo "::error::RUBYGEMS_API_KEY is not available to this repository"; exit 1; }
-
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.2"
@@ -105,6 +95,22 @@ jobs:
               exit 1
             end
           '
+
+      # LAST, not first. This started the job, and on the first dispatch it
+      # failed before the gem was built - so the run proved the credential
+      # missing and nothing else, skipping the very step a rehearsal exists to
+      # exercise. A missing key must still fail the run, but everything that
+      # can be checked without it should be checked first.
+      #
+      # Presence only, deliberately. A RubyGems API key scoped to push_rubygem
+      # cannot read /api/v1/profile/me.json - it answers 401 exactly as a bad
+      # key does - so a validity check built on that endpoint would fail the
+      # least-privilege key it should encourage. An honest gap beats a wrong
+      # gate.
+      - name: The RubyGems credential is present
+        run: |
+          [ -n "${{ secrets.RUBYGEMS_API_KEY }}" ] \
+            || { echo "::error::RUBYGEMS_API_KEY is not available to this repository"; exit 1; }
 
       - uses: actions/upload-artifact@v4
         with:
