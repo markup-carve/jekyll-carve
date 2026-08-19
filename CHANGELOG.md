@@ -6,9 +6,7 @@ Rendering is done by the Carve engine (`carve-lang`, the magnus binding over
 carve-rs), so an engine change can alter output with no plugin diff. Engine
 moves therefore get an entry of their own.
 
-## Unreleased
-
-Prepared as 0.1.0. Not released: see the note below.
+## [0.1.0] - 2026-08-19
 
 ### Added
 
@@ -29,14 +27,12 @@ Prepared as 0.1.0. Not released: see the note below.
 - The pinned carve-rb revision moves 32 commits forward, onto the release
   freeze. The engine it builds no longer carries the list-valued URL defect.
 
-### Not released, and why
+### Security
 
-`jekyll-carve.gemspec` depends on `carve-lang >= 0.1.0`, and 0.1.0 is the only
-carve-lang on RubyGems. That release predates the Carve 0.1.3 security release,
-and it is vulnerable - verified by installing it and rendering the case above,
-which comes back unsanitized.
-
-So publishing this gem today would ship a plugin whose every consumer resolves
-a vulnerable engine, while this repository's own suite is green against a
-patched one. The floor cannot simply be raised either: no patched `carve-lang`
-exists on RubyGems to raise it to. This release waits on carve-rb publishing.
+- The `carve-lang` floor moves to `>= 0.1.1`. At `>= 0.1.0` a consumer could
+  resolve carve-lang 0.1.0, which predates the Carve 0.1.3 security release and
+  renders a list-valued URL attribute unsanitized - so this plugin's own suite
+  could be green while every install of it carried a vulnerable engine. 0.1.1 is
+  the rebuild onto carve-rs 0.1.3, and the development pin moves to that tag's
+  commit so the engine under `bundle exec rspec` is the one the gemspec now
+  requires.
