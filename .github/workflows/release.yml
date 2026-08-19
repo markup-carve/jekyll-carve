@@ -1,0 +1,134 @@
+# This gem has never been published. v0.1.0 was prepared and deliberately held,
+# because `carve-lang >= 0.1.0` let a consumer resolve an engine that predates
+# the Carve 0.1.3 security release - so the plugin's own suite could be green
+# while every install of it rendered a list-valued URL attribute unsanitized.
+# carve-lang 0.1.1 fixed that, the floor moved with it, and this is the missing
+# half: something that can actually publish.
+#
+# PUBLISH SITS BEHIND THE GATE VIA `needs:`, not step order. A check placed in
+# front of a push step in the same job goes green when it is skipped, which is
+# how markup-carve/carve-py half-shipped: tag and release live, upload skipped,
+# registry still serving the version the security fix was for.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+  # A tag-triggered workflow is unexercisable between releases, which is how a
+  # release job rots. A dispatch runs the whole gate against main and stops
+  # before publishing.
+  workflow_dispatch:
+
+jobs:
+  verify:
+    name: Build the gem and prove the engine under it is patched
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: The tag, the version constant and the changelog agree
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            tag="$(sed -n 's/.*VERSION[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' lib/jekyll/carve/version.rb | head -1)"
+            echo "rehearsal: no tag exists, using VERSION ($tag)"
+          else
+            tag="${GITHUB_REF_NAME#v}"
+          fi
+          ver="$(sed -n 's/.*VERSION[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' lib/jekyll/carve/version.rb | head -1)"
+          [ "$tag" = "$ver" ] \
+            || { echo "::error::Jekyll::Carve::VERSION is $ver, tag is $tag"; exit 1; }
+          grep -qE "^## \[?${tag}\]? - " CHANGELOG.md \
+            || { echo "::error::CHANGELOG.md has no section for $tag"; exit 1; }
+          echo "version $ver"
+
+      # Presence only, deliberately. A RubyGems API key scoped to push_rubygem
+      # cannot read /api/v1/profile/me.json - it answers 401 exactly as a bad
+      # key does - so a validity check built on that endpoint would fail the
+      # least-privilege key it should encourage. An honest gap beats a wrong
+      # gate.
+      - name: The RubyGems credential is present
+        run: |
+          [ -n "${{ secrets.RUBYGEMS_API_KEY }}" ] \
+            || { echo "::error::RUBYGEMS_API_KEY is not available to this repository"; exit 1; }
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: true
+
+      - name: Install libclang, which rb-sys needs to build carve-lang
+        run: sudo apt-get update && sudo apt-get install -y libclang-dev
+
+      - run: bundle exec rspec
+
+      - name: Build gem
+        run: gem build jekyll-carve.gemspec
+
+      # `spec.files` is a Dir[] glob, so a rename ships a gem missing its own
+      # code and nothing says so.
+      - name: The gem carries the library
+        run: |
+          gem="$(ls jekyll-carve-*.gem)"
+          listing="$(tar -xOf "$gem" data.tar.gz | tar -tzf -)"
+          missing=0
+          for want in lib/jekyll-carve.rb README.md LICENSE; do
+            printf '%s\n' "$listing" | grep -qx "$want" \
+              || { echo "::error::the gem is missing $want"; missing=1; }
+          done
+          n="$(printf '%s\n' "$listing" | grep -c '^lib/.*\.rb$')"
+          [ "$n" -ge 2 ] || { echo "::error::only $n ruby file(s) under lib/"; missing=1; }
+          exit $missing
+
+      # THE GATE THIS REPOSITORY EXISTS TO HAVE. Install the built gem into an
+      # isolated GEM_HOME, let RubyGems resolve `carve-lang` through the floor
+      # the gemspec declares, and render the probe that the held release was
+      # held for. A floor is a claim about what a consumer resolves; this is the
+      # only way to check the claim rather than restate it.
+      #
+      # It runs against the INSTALLED gem, not the checkout: Gemfile pins an
+      # engine by git ref for development, and a consumer gets whatever the
+      # floor resolves. Those are different engines and this repository has
+      # already been bitten by the difference.
+      - name: The engine a consumer resolves sanitizes a list-valued URL
+        run: |
+          gem="$(ls jekyll-carve-*.gem)"
+          export GEM_HOME="${RUNNER_TEMP}/consumer"
+          gem install --no-document "./${gem}"
+          GEM_HOME="$GEM_HOME" ruby -e '
+            require "carve"
+            src = %q{![a](x.png){srcset="safe.png 1x, javascript:alert(1) 2x"}}
+            out = Carve.to_html(src)
+            puts "carve-lang #{Carve::VERSION} -> #{out.strip}"
+            if out.include?("javascript:")
+              warn "::error::the resolved engine leaks a javascript: URL from the second srcset entry"
+              exit 1
+            end
+          '
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gem
+          path: jekyll-carve-*.gem
+
+  publish:
+    name: Publish to RubyGems
+    runs-on: ubuntu-latest
+    needs: [verify]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: gem
+
+      # Pushes the artifact the gate verified rather than building a second
+      # copy, so what RubyGems serves is the bytes that rendered the probe.
+      - name: Publish to RubyGems
+        env:
+          GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "::notice::rehearsal - nothing was published to RubyGems"
+            ls -l jekyll-carve-*.gem
+          else
+            gem push jekyll-carve-*.gem
+          fi

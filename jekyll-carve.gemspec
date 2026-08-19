@@ -23,7 +23,11 @@ Gem::Specification.new do |spec|
   ]
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "carve-lang", ">= 0.1.0"
+  # >= 0.1.1, not 0.1.0. carve-lang 0.1.0 predates the Carve 0.1.3 security
+  # release and renders a list-valued URL attribute unsanitized; a floor of
+  # 0.1.0 lets a consumer resolve it and get a vulnerable engine under a plugin
+  # whose own suite is green. 0.1.1 is the rebuild onto carve-rs 0.1.3.
+  spec.add_dependency "carve-lang", ">= 0.1.1"
   spec.add_dependency "jekyll", ">= 4.0"
 
   spec.add_development_dependency "rspec", "~> 3.0"
