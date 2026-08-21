@@ -45,5 +45,14 @@ jobs:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
 
+      # A PIN NOTHING VERIFIES IS NOT A PIN. `Gemfile` pins carve-lang to a
+      # carve-rb revision, but until now nothing read it back, so every way of
+      # measuring a different engine left the run below green and silent: the
+      # ref dropped, `CARVE_RB_PATH` set in the environment, or a restored
+      # bundler cache resolved before the pin last moved. This states the engine
+      # behind the result and fails when it is not the pinned one.
+      - name: Verify the engine this run measures
+        run: bundle exec ruby script/verify_engine_pin.rb
+
       - name: Run tests
         run: bundle exec rspec

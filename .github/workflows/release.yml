@@ -98,21 +98,17 @@ jobs:
       # engine by git ref for development, and a consumer gets whatever the
       # floor resolves. Those are different engines and this repository has
       # already been bitten by the difference.
+      #
+      # The probe itself lives in `script/consumer_engine_probe.rb` because the
+      # daily `consumer` job in `.github/workflows/engine-drift.yml` has to ask
+      # the identical question - this one before publishing, that one before a
+      # user finds out - and two copies of a security check drift apart.
       - name: The engine a consumer resolves sanitizes a list-valued URL
         run: |
           gem="$(ls jekyll-carve-*.gem)"
           export GEM_HOME="${RUNNER_TEMP}/consumer"
           gem install --no-document "./${gem}"
-          GEM_HOME="$GEM_HOME" ruby -e '
-            require "carve"
-            src = %q{![a](x.png){srcset="safe.png 1x, javascript:alert(1) 2x"}}
-            out = Carve.to_html(src)
-            puts "carve-lang #{Carve::VERSION} -> #{out.strip}"
-            if out.include?("javascript:")
-              warn "::error::the resolved engine leaks a javascript: URL from the second srcset entry"
-              exit 1
-            end
-          '
+          GEM_HOME="$GEM_HOME" ruby script/consumer_engine_probe.rb
 
       - uses: actions/upload-artifact@v4
         with:
