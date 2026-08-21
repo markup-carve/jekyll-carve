@@ -6,6 +6,16 @@ Rendering is done by the Carve engine (`carve-lang`, the magnus binding over
 carve-rs), so an engine change can alter output with no plugin diff. Engine
 moves therefore get an entry of their own.
 
+## Unreleased
+
+### Added
+
+- `carve.symbols` in `_config.yml` supplies the `:name:` symbol map, as an
+  inline mapping, a path to a JSON object, or a list of both merged left to
+  right. Without it `:smile:` renders as literal text. The map is substituted
+  raw by the engine, so it is read only from the site's own configuration and
+  from files at paths named there ([#7](https://github.com/markup-carve/jekyll-carve/issues/7)).
+
 ## [0.1.0] - 2026-08-19
 
 ### Added

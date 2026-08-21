@@ -9,3 +9,10 @@ This is /italic/ and *bold* text rendered by the native Carve engine.
 - Apple
 - Banana
 - Cherry
+
+## Symbols
+
+`carve.symbols` maps a shortcode to what it renders as: :ship: comes from
+`_data/symbols.json`, and :carve: from the inline mapping beside it - that one
+is markup, which reaches the page raw. A name with no entry, like :shrug:,
+keeps rendering as its own text.

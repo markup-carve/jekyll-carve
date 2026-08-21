@@ -8,6 +8,12 @@ plugins:
 carve:
   extensions:
     - heading_permalinks
+  # The `:name:` map. An inline mapping and a JSON file, merged left to right.
+  # Read only from here and from files named here - a symbol value is emitted
+  # RAW, so it must never come from anything a visitor can influence.
+  symbols:
+    - _data/symbols.json
+    - carve: '<abbr title="the Carve markup language">Carve</abbr>'
 
 # Keep the build minimal and deterministic.
 exclude:
