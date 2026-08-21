@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require "json"
+require "tmpdir"
+
 require "jekyll-carve"
 
 RSpec.describe Jekyll::Carve::Converter do
@@ -72,6 +75,248 @@ RSpec.describe Jekyll::Carve::Converter do
     context "with no carve config" do
       it "defaults to an empty extension list" do
         expect(converter.carve_extensions).to eq([])
+      end
+    end
+  end
+
+  # `:name:` is core Carve syntax, but what a name renders AS is a render
+  # option. Without a map the engine renders the shortcode as its own source
+  # text, which is correct and is also what a site configuring one does not
+  # want. See jekyll-carve#7.
+  describe "#carve_symbols" do
+    let(:fixtures) { File.expand_path("fixtures", __dir__) }
+
+    context "with no carve.symbols key" do
+      it "passes no map, so the engine keeps its own default" do
+        expect(converter.carve_symbols).to be_nil
+      end
+
+      it "leaves a shortcode as literal text" do
+        expect(converter.convert("Ship it :smile:")).to include(":smile:")
+      end
+    end
+
+    context "with an inline mapping" do
+      let(:config) { { "carve" => { "symbols" => { "smile" => "\u{1F604}" } } } }
+
+      it "reads the map from Jekyll config" do
+        expect(converter.carve_symbols).to eq({ "smile" => "\u{1F604}" })
+      end
+
+      it "renders the mapped name" do
+        expect(converter.convert("Ship it :smile:")).to include("\u{1F604}")
+      end
+
+      it "leaves an unmapped name literal beside a mapped one" do
+        html = converter.convert("Ship it :smile: :shrug:")
+        expect(html).to include("\u{1F604}")
+        expect(html).to include(":shrug:")
+      end
+
+      # A configured map must not loosen the engine's word-boundary guard: a
+      # shortcode needs a boundary before its opening colon, so a time, a
+      # ratio and a code span are not shortcodes even when the name is mapped.
+      it "still requires a word boundary before the opening colon" do
+        expect(converter.convert("a:smile:b")).to include("a:smile:b")
+        expect(converter.convert("3:smile:4")).to include("3:smile:4")
+        expect(converter.convert("`:smile:`")).to include(":smile:")
+        expect(converter.convert("`:smile:`")).not_to include("\u{1F604}")
+      end
+
+      it "does substitute where the boundary is there" do
+        expect(converter.convert("A :smile: here")).to include("\u{1F604}")
+      end
+
+      # Kernel#Array turns a Hash into an array of pairs, which would shred an
+      # inline mapping into something that is no longer a map.
+      it "does not flatten the mapping into pairs" do
+        expect(converter.carve_symbols).to be_a(Hash)
+      end
+    end
+
+    # A NAME is coerced where a value is not: YAML hands back a Symbol or a
+    # boolean for some unquoted keys, and a name never reaches the output.
+    context "with a name YAML did not hand back as a String" do
+      let(:config) { { "carve" => { "symbols" => { :smile => "Y", true => "N" } } } }
+
+      it "keys the map by the String name" do
+        expect(converter.carve_symbols).to eq({ "smile" => "Y", "true" => "N" })
+      end
+    end
+
+    context "with a path to a JSON file" do
+      let(:config) { { "source" => fixtures, "carve" => { "symbols" => "symbols.json" } } }
+
+      it "resolves the file relative to the site source" do
+        expect(converter.carve_symbols).to eq({ "smile" => "\u{1F604}", "ship" => "\u{1F680}" })
+      end
+
+      it "renders a name from the file" do
+        expect(converter.convert("Ship it :ship:")).to include("\u{1F680}")
+      end
+
+      it "parses the file once and reuses the map" do
+        expect(File).to receive(:read).once.and_call_original
+        3.times { converter.carve_symbols }
+      end
+    end
+
+    # Jekyll instantiates converters from Site#initialize while Site#process
+    # calls only reset, so ONE converter instance serves every rebuild under
+    # `jekyll serve --watch`. A map memoized outright would keep serving a file
+    # the author has since edited; the `:site, :after_reset` hook is what scopes
+    # the memo to a build.
+    context "when a source file changes between builds" do
+      around do |example|
+        Dir.mktmpdir { |dir| @source = dir and example.run }
+      end
+
+      let(:config) { { "source" => @source, "carve" => { "symbols" => "symbols.json" } } }
+
+      def write_map(value)
+        File.write(File.join(@source, "symbols.json"), JSON.generate({ "smile" => value }))
+      end
+
+      it "picks the edit up on the build after a reset" do
+        write_map("FIRST")
+        expect(converter.convert("A :smile: here")).to include("FIRST")
+
+        write_map("SECOND")
+        converter.reset_symbols
+        expect(converter.convert("A :smile: here")).to include("SECOND")
+      end
+
+      # The hook is what calls reset_symbols in a real build, so it is pinned
+      # here rather than left to be true by inspection.
+      it "is reset by the site after_reset hook" do
+        write_map("FIRST")
+        expect(converter.convert("A :smile: here")).to include("FIRST")
+
+        write_map("SECOND")
+        Jekyll::Hooks.trigger(:site, :after_reset, double(converters: [converter]))
+        expect(converter.convert("A :smile: here")).to include("SECOND")
+      end
+
+      # Site#initialize calls reset BEFORE setup, so the first time this hook
+      # fires there is no converter list yet.
+      it "survives the hook firing before converters exist" do
+        expect { Jekyll::Hooks.trigger(:site, :after_reset, double(converters: nil)) }
+          .not_to raise_error
+      end
+    end
+
+    context "with a list of sources" do
+      let(:config) do
+        {
+          "source" => fixtures,
+          "carve"  => { "symbols" => ["symbols.json", { "ship" => "SHIP" }] },
+        }
+      end
+
+      it "merges left to right, so a later source overrides an earlier one" do
+        expect(converter.carve_symbols).to eq({ "smile" => "\u{1F604}", "ship" => "SHIP" })
+      end
+    end
+
+    # The map is substituted RAW by the engine, so where it may come from is
+    # the whole of the security story: _config.yml, and files at paths named
+    # in it, clamped inside the site source.
+    context "with a path that tries to leave the site source" do
+      let(:config) do
+        { "source" => fixtures, "carve" => { "symbols" => "../../../../etc/passwd" } }
+      end
+
+      it "clamps the path inside the source instead of following it" do
+        expect { converter.carve_symbols }
+          .to raise_error(ArgumentError, %r{#{Regexp.escape(fixtures)}/etc/passwd})
+      end
+    end
+
+    # Clamping the written path is only half of it: a symlink inside the source
+    # is not lexical, and File.read follows it. This converter declares
+    # `safe true`, so a host building a site it did not write must not be able
+    # to have a file outside the source read through it.
+    context "with a symlink inside the source pointing outside it" do
+      around do |example|
+        Dir.mktmpdir do |outside|
+          Dir.mktmpdir do |source|
+            @outside = File.join(outside, "secret.json")
+            File.write(@outside, JSON.generate({ "smile" => "LEAKED" }))
+            File.symlink(@outside, File.join(source, "symbols.json"))
+            @source = source
+            example.run
+          end
+        end
+      end
+
+      let(:config) { { "source" => @source, "carve" => { "symbols" => "symbols.json" } } }
+
+      it "refuses to read through it" do
+        expect { converter.carve_symbols }
+          .to raise_error(ArgumentError, /outside the site source/)
+      end
+    end
+
+    # The confinement is on where the file RESOLVES, not on symlinks as such:
+    # a link that stays inside the source is an ordinary way to organize a site.
+    context "with a symlink that stays inside the source" do
+      around do |example|
+        Dir.mktmpdir do |source|
+          Dir.mkdir(File.join(source, "_data"))
+          File.write(File.join(source, "_data", "real.json"), JSON.generate({ "smile" => "OK" }))
+          File.symlink(File.join(source, "_data", "real.json"), File.join(source, "symbols.json"))
+          @source = source
+          example.run
+        end
+      end
+
+      let(:config) { { "source" => @source, "carve" => { "symbols" => "symbols.json" } } }
+
+      it "follows it" do
+        expect(converter.carve_symbols).to eq({ "smile" => "OK" })
+      end
+    end
+
+    context "with a misconfigured map" do
+      def converter_for(symbols)
+        described_class.new({ "source" => fixtures, "carve" => { "symbols" => symbols } })
+      end
+
+      it "raises when the file does not exist" do
+        expect { converter_for("nope.json").carve_symbols }
+          .to raise_error(ArgumentError, /no such file/)
+      end
+
+      it "raises when the file is not valid JSON" do
+        expect { converter_for("broken.json").carve_symbols }
+          .to raise_error(ArgumentError, /not valid JSON/)
+      end
+
+      it "raises when the JSON top level is not an object" do
+        expect { converter_for("not-an-object.json").carve_symbols }
+          .to raise_error(ArgumentError, /must hold a JSON object/)
+      end
+
+      # A value goes into the page RAW, so anything but a String is refused
+      # rather than stringified.
+      it "raises on a nested mapping" do
+        expect { converter_for({ "smile" => { "nested" => "x" } }).carve_symbols }
+          .to raise_error(ArgumentError, /value for "smile" must be a string/)
+      end
+
+      it "raises on a number, rather than emitting it" do
+        expect { converter_for({ "count" => 1 }).carve_symbols }
+          .to raise_error(ArgumentError, /value for "count" must be a string/)
+      end
+
+      it "raises on a boolean, which is what an unquoted YAML value becomes" do
+        expect { converter_for({ "smile" => true }).carve_symbols }
+          .to raise_error(ArgumentError, /value for "smile" must be a string/)
+      end
+
+      it "raises on a source that is neither a mapping nor a path" do
+        expect { converter_for([42]).carve_symbols }
+          .to raise_error(ArgumentError, /expected a mapping or a path/)
       end
     end
   end
