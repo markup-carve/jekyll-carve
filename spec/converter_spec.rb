@@ -232,6 +232,51 @@ RSpec.describe Jekyll::Carve::Converter do
       end
     end
 
+    # Clamping the written path is only half of it: a symlink inside the source
+    # is not lexical, and File.read follows it. This converter declares
+    # `safe true`, so a host building a site it did not write must not be able
+    # to have a file outside the source read through it.
+    context "with a symlink inside the source pointing outside it" do
+      around do |example|
+        Dir.mktmpdir do |outside|
+          Dir.mktmpdir do |source|
+            @outside = File.join(outside, "secret.json")
+            File.write(@outside, JSON.generate({ "smile" => "LEAKED" }))
+            File.symlink(@outside, File.join(source, "symbols.json"))
+            @source = source
+            example.run
+          end
+        end
+      end
+
+      let(:config) { { "source" => @source, "carve" => { "symbols" => "symbols.json" } } }
+
+      it "refuses to read through it" do
+        expect { converter.carve_symbols }
+          .to raise_error(ArgumentError, /outside the site source/)
+      end
+    end
+
+    # The confinement is on where the file RESOLVES, not on symlinks as such:
+    # a link that stays inside the source is an ordinary way to organize a site.
+    context "with a symlink that stays inside the source" do
+      around do |example|
+        Dir.mktmpdir do |source|
+          Dir.mkdir(File.join(source, "_data"))
+          File.write(File.join(source, "_data", "real.json"), JSON.generate({ "smile" => "OK" }))
+          File.symlink(File.join(source, "_data", "real.json"), File.join(source, "symbols.json"))
+          @source = source
+          example.run
+        end
+      end
+
+      let(:config) { { "source" => @source, "carve" => { "symbols" => "symbols.json" } } }
+
+      it "follows it" do
+        expect(converter.carve_symbols).to eq({ "smile" => "OK" })
+      end
+    end
+
     context "with a misconfigured map" do
       def converter_for(symbols)
         described_class.new({ "source" => fixtures, "carve" => { "symbols" => symbols } })

@@ -99,7 +99,9 @@ carve:
     - ship: "🚀"
 ```
 
-A path is resolved against the site source and clamped inside it. A name that
+A path is resolved against the site source and confined to it, symlinks
+included - a link inside the source pointing at a file outside it is refused
+rather than followed. A name that
 is not in the map keeps rendering as its own text, and the map does not loosen
 Carve's word-boundary rule: `10:30:` and `a:smile:b` are not shortcodes, and
 `` `:smile:` `` inside a code span stays code.

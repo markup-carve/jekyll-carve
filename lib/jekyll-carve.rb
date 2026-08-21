@@ -155,13 +155,34 @@ module Jekyll
         source.empty? ? Dir.pwd : source
       end
 
-      # One configured path, resolved and clamped inside the site source.
+      # One configured path, resolved and confined to the site source.
       #
-      # `Jekyll.sanitized_path` is what does the clamping: "../../etc/passwd"
-      # resolves to "<source>/etc/passwd", so a path cannot name a file outside
-      # the project even by accident.
+      # Two layers, because they stop different things.
+      #
+      # `Jekyll.sanitized_path` clamps the LEXICAL path: "../../etc/passwd"
+      # comes back as "<source>/etc/passwd", so a written path cannot name a
+      # file outside the project.
+      #
+      # A symlink is not lexical. A link INSIDE the source pointing at a file
+      # outside it survives that clamp, and `File.read` follows it - which on a
+      # host building a site it did not write would read and potentially
+      # publish that file, through a converter that declares `safe true`. So
+      # the resolved path is compared against the site source with both sides
+      # fully resolved. Jekyll takes the same posture in safe mode: its reader
+      # excludes symlinked entries outright.
       def symbol_path(relative_path)
-        Jekyll.sanitized_path(site_source, relative_path)
+        path = Jekyll.sanitized_path(site_source, relative_path)
+        real, root = begin
+          [File.realpath(path), File.realpath(site_source)]
+        rescue SystemCallError
+          # Nothing there to resolve. load_symbol_file raises naming the path.
+          return path
+        end
+        return real if real == root || real.start_with?(root + File::SEPARATOR)
+
+        raise ArgumentError,
+              "carve.symbols: #{relative_path} resolves to #{real}, which is " \
+              "outside the site source #{root}"
       end
 
       # Merge every configured source, left to right, into one map.
