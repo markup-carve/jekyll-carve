@@ -55,6 +55,26 @@ end
 # govern; this reports the case where it did not - a stray carve-lang activated
 # earlier, or a probe run outside the isolated GEM_HOME it was meant for.
 
+# ISOLATION IS CHECKED, NOT ASSUMED. The version backstop below cannot see a
+# stray engine that happens to SATISFY the declared range: it satisfies every
+# claim being checked while coming from somewhere this install never wrote.
+# Measured with a decoy carve-lang 0.1.1 outside the prefix - `gem install`
+# treated the dependency as already met, installed no engine, and every check
+# in this file passed. So ask where the engine actually came from. This is the
+# check that does not depend on getting GEM_PATH right in the caller: any
+# future leak in the environment shows up here rather than silently.
+prefix = ENV["GEM_HOME"]
+refuse "GEM_HOME is unset, so there is no isolated prefix to measure - see the header" if prefix.nil? || prefix.empty?
+
+engine = Gem.loaded_specs["carve-lang"]
+refuse "carve-lang never activated, so nothing here rendered through a resolved engine" if engine.nil?
+
+unless File.realpath(engine.base_dir) == File.realpath(prefix)
+  refuse "carve-lang #{engine.version} was resolved from #{engine.base_dir}, not from the " \
+         "isolated GEM_HOME #{prefix} - this install did not produce the engine being " \
+         "measured, so the result describes a gem that was already on the machine"
+end
+
 dependency = installed.dependencies.find { |d| d.name == "carve-lang" }
 refuse "the installed jekyll-carve #{installed.version} declares no carve-lang dependency" if dependency.nil?
 

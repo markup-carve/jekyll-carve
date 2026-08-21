@@ -103,12 +103,20 @@ jobs:
       # daily `consumer` job in `.github/workflows/engine-drift.yml` has to ask
       # the identical question - this one before publishing, that one before a
       # user finds out - and two copies of a security check drift apart.
+      #
+      # GEM_PATH as well as GEM_HOME: GEM_HOME alone only redirects where a gem
+      # is WRITTEN, and RubyGems keeps its default directories in `Gem.path`, so
+      # a carve-lang already on the runner would stay visible and this step
+      # could report on an engine it never installed. This is the pattern the
+      # `consumer` job in `engine-drift.yml` inherited from here, so both are
+      # corrected together, and the reasoning is spelled out there.
       - name: The engine a consumer resolves sanitizes a list-valued URL
         run: |
           gem="$(ls jekyll-carve-*.gem)"
           export GEM_HOME="${RUNNER_TEMP}/consumer"
+          export GEM_PATH="${GEM_HOME}"
           gem install --no-document "./${gem}"
-          GEM_HOME="$GEM_HOME" ruby script/consumer_engine_probe.rb
+          ruby script/consumer_engine_probe.rb
 
       - uses: actions/upload-artifact@v4
         with:
