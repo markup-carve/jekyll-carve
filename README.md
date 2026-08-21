@@ -112,7 +112,11 @@ both page types resolve one map.
 
 A misconfigured map fails the build rather than being warned past: a missing
 file, invalid JSON, a JSON top level that is not an object, or a value that is
-not a string each raise `ArgumentError` naming the file or the key.
+not a string each raise `ArgumentError` naming the file or the key. A value is
+not coerced, because it reaches the page raw - `count: 1` is a mistake worth
+stopping for, not something to stringify and emit. A NAME is coerced, since
+YAML hands back a Symbol or a boolean for some unquoted keys and a name never
+reaches the output.
 
 > [!WARNING]
 > A symbol value is inserted as **trusted raw output**. It is not escaped, so
@@ -182,7 +186,8 @@ has already removed the leading block by the time Carve runs.
 | `output_ext(ext)` | `".html"` (includes the dot so Jekyll emits `page.html`). |
 | `convert(content)` | `Carve.to_html(content, extensions: configured, symbols: configured)` - the rendered HTML. |
 | `carve_extensions` | The extension list read from `carve.extensions` in `_config.yml` (empty by default). |
-| `carve_symbols` | The `:name:` map read from `carve.symbols` in `_config.yml`, or `nil` when the key is absent. Built once and re-read only when a file it came from changes, so `jekyll serve --watch` picks up an edit. |
+| `carve_symbols` | The `:name:` map read from `carve.symbols` in `_config.yml`, or `nil` when the key is absent. Resolved once per build. |
+| `reset_symbols` | Drops the cached map. Called from the `site, after_reset` hook this plugin registers, which is what scopes the cache to a build so `jekyll serve --watch` picks up an edit to a symbol file. |
 
 ## Development
 

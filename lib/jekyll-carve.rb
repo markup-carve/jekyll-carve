@@ -108,12 +108,23 @@ module Jekyll
       # configured (nil, so the engine keeps its own default rather than being
       # told there are no symbols).
       def carve_symbols
-        signature = symbol_source_signature
-        unless @symbol_signature == signature
-          @symbols = build_symbols
-          @symbol_signature = signature
-        end
-        @symbols
+        return @symbols if defined?(@symbols)
+
+        @symbols = build_symbols
+      end
+
+      # Drop the cached map, so the next render resolves it again.
+      #
+      # Called from the `:site, :after_reset` hook at the bottom of this file,
+      # which is what makes the map resolve once per BUILD rather than once per
+      # process. Jekyll instantiates converters from `Site#initialize` while
+      # `Site#process` calls only `reset`, so under `jekyll serve --watch` ONE
+      # converter instance serves every rebuild - and a map memoized outright
+      # would keep serving a file the author has since edited.
+      #
+      # Returns nothing.
+      def reset_symbols
+        remove_instance_variable(:@symbols) if defined?(@symbols)
       end
 
       private
@@ -151,28 +162,6 @@ module Jekyll
       # the project even by accident.
       def symbol_path(relative_path)
         Jekyll.sanitized_path(site_source, relative_path)
-      end
-
-      # Absolute paths for the file-shaped sources, in configuration order.
-      def symbol_paths
-        symbol_sources.grep(String).map { |path| symbol_path(path) }
-      end
-
-      # What the cached map was built from, so an edit invalidates it.
-      #
-      # Jekyll calls `setup` (which instantiates converters) from
-      # `Site#initialize`, while `Site#process` calls only `reset`. So under
-      # `jekyll serve --watch` ONE converter instance serves every rebuild, and
-      # a plain memo would keep serving a map built from a file the author has
-      # since edited. Keying the memo on each file's mtime and size costs one
-      # stat per configured path and keeps the parse itself once per build.
-      def symbol_source_signature
-        symbol_paths.map do |path|
-          stat = File.stat(path)
-          [path, stat.mtime, stat.size]
-        rescue SystemCallError
-          [path, :unreadable]
-        end
       end
 
       # Merge every configured source, left to right, into one map.
@@ -213,27 +202,44 @@ module Jekyll
         normalize_symbols(parsed, path)
       end
 
-      # Coerce one source's keys and values to the Strings the engine takes.
+      # Check one source and key it by String name.
       #
       # These are Hash keys of a shortcode map, NOT Ruby Symbols - `carve.symbols`
       # and the `Strings/Symbols passed through` of `carve_extensions` are
-      # different things that share a word.
+      # different things that share a word. A name IS coerced, because YAML
+      # hands back a Symbol or a boolean for some unquoted keys (`:on:` is a
+      # perfectly ordinary shortcode to want) and a name never reaches output.
       #
-      # A nested Hash or Array is refused rather than stringified: the value goes
-      # into the page RAW, and `{"a"=>"b"}` appearing in the output is nobody's
-      # intent.
+      # A VALUE is not coerced. It goes into the page RAW, so `count: 1` or a
+      # nested mapping is a mistake worth stopping the build for rather than
+      # something to stringify and emit. The engine draws the same line: it
+      # raises TypeError on a non-String value.
       def normalize_symbols(map, origin)
         map.each_with_object({}) do |(name, value), out|
-          case value
-          when nil, Hash, Array
+          unless value.is_a?(String)
             raise ArgumentError,
                   "#{origin}: the value for #{name.to_s.inspect} must be a string, " \
                   "got #{value.class}"
-          else
-            out[name.to_s] = value.to_s
           end
+
+          out[name.to_s] = value
         end
       end
     end
+  end
+end
+
+# Resolve the symbol map once per build rather than once per process.
+#
+# `Site#reset` runs at the top of every `Site#process`, including every rebuild
+# under `jekyll serve --watch`, and it is the only site event that fires on a
+# rebuild without also re-instantiating the converters. See
+# Jekyll::Carve::Converter#reset_symbols.
+#
+# `converters` is nil the first time this fires: `Site#initialize` calls `reset`
+# BEFORE `setup`, and `setup` is what builds the converter list.
+Jekyll::Hooks.register :site, :after_reset do |site|
+  Array(site.converters).each do |converter|
+    converter.reset_symbols if converter.is_a?(Jekyll::Carve::Converter)
   end
 end

@@ -134,6 +134,16 @@ RSpec.describe Jekyll::Carve::Converter do
       end
     end
 
+    # A NAME is coerced where a value is not: YAML hands back a Symbol or a
+    # boolean for some unquoted keys, and a name never reaches the output.
+    context "with a name YAML did not hand back as a String" do
+      let(:config) { { "carve" => { "symbols" => { :smile => "Y", true => "N" } } } }
+
+      it "keys the map by the String name" do
+        expect(converter.carve_symbols).to eq({ "smile" => "Y", "true" => "N" })
+      end
+    end
+
     context "with a path to a JSON file" do
       let(:config) { { "source" => fixtures, "carve" => { "symbols" => "symbols.json" } } }
 
@@ -154,7 +164,8 @@ RSpec.describe Jekyll::Carve::Converter do
     # Jekyll instantiates converters from Site#initialize while Site#process
     # calls only reset, so ONE converter instance serves every rebuild under
     # `jekyll serve --watch`. A map memoized outright would keep serving a file
-    # the author has since edited.
+    # the author has since edited; the `:site, :after_reset` hook is what scopes
+    # the memo to a build.
     context "when a source file changes between builds" do
       around do |example|
         Dir.mktmpdir { |dir| @source = dir and example.run }
@@ -163,20 +174,34 @@ RSpec.describe Jekyll::Carve::Converter do
       let(:config) { { "source" => @source, "carve" => { "symbols" => "symbols.json" } } }
 
       def write_map(value)
-        path = File.join(@source, "symbols.json")
-        File.write(path, JSON.generate({ "smile" => value }))
-        # mtime has second granularity on some filesystems, and the two writes
-        # here are milliseconds apart; the size differs, which is the other half
-        # of the signature.
-        path
+        File.write(File.join(@source, "symbols.json"), JSON.generate({ "smile" => value }))
       end
 
-      it "picks the edit up on the next render" do
+      it "picks the edit up on the build after a reset" do
         write_map("FIRST")
         expect(converter.convert("A :smile: here")).to include("FIRST")
 
-        write_map("SECOND-AND-LONGER")
-        expect(converter.convert("A :smile: here")).to include("SECOND-AND-LONGER")
+        write_map("SECOND")
+        converter.reset_symbols
+        expect(converter.convert("A :smile: here")).to include("SECOND")
+      end
+
+      # The hook is what calls reset_symbols in a real build, so it is pinned
+      # here rather than left to be true by inspection.
+      it "is reset by the site after_reset hook" do
+        write_map("FIRST")
+        expect(converter.convert("A :smile: here")).to include("FIRST")
+
+        write_map("SECOND")
+        Jekyll::Hooks.trigger(:site, :after_reset, double(converters: [converter]))
+        expect(converter.convert("A :smile: here")).to include("SECOND")
+      end
+
+      # Site#initialize calls reset BEFORE setup, so the first time this hook
+      # fires there is no converter list yet.
+      it "survives the hook firing before converters exist" do
+        expect { Jekyll::Hooks.trigger(:site, :after_reset, double(converters: nil)) }
+          .not_to raise_error
       end
     end
 
@@ -227,9 +252,20 @@ RSpec.describe Jekyll::Carve::Converter do
           .to raise_error(ArgumentError, /must hold a JSON object/)
       end
 
-      # A nested Hash would otherwise be stringified into the page RAW.
-      it "raises on a value that is not a string" do
+      # A value goes into the page RAW, so anything but a String is refused
+      # rather than stringified.
+      it "raises on a nested mapping" do
         expect { converter_for({ "smile" => { "nested" => "x" } }).carve_symbols }
+          .to raise_error(ArgumentError, /value for "smile" must be a string/)
+      end
+
+      it "raises on a number, rather than emitting it" do
+        expect { converter_for({ "count" => 1 }).carve_symbols }
+          .to raise_error(ArgumentError, /value for "count" must be a string/)
+      end
+
+      it "raises on a boolean, which is what an unquoted YAML value becomes" do
+        expect { converter_for({ "smile" => true }).carve_symbols }
           .to raise_error(ArgumentError, /value for "smile" must be a string/)
       end
 
