@@ -154,11 +154,37 @@ jobs:
       # No bundler and no Gemfile: this must resolve the way `gem install
       # jekyll-carve` does for a stranger, which means through the gemspec range
       # and nothing else.
+      #
+      # GEM_PATH AS WELL AS GEM_HOME. GEM_HOME alone only redirects where a gem
+      # is WRITTEN; RubyGems keeps its default directories in `Gem.path`, so a
+      # carve-lang already present on the runner stays visible and the probe
+      # below can activate one this step never installed. The gemspec range is
+      # not a backstop against that: a stray gem INSIDE `>= 0.1.1, < 0.2.0`
+      # satisfies every claim the probe checked. Measured end to end with a
+      # decoy carve-lang 0.1.1 outside the isolated prefix: with GEM_HOME alone
+      # `gem install` treated the dependency as already satisfied, installed no
+      # engine at all, and the probe activated the decoy.
+      #
+      # GEM_PATH is the isolated prefix ALONE, with no default directory on it.
+      # markup-carve/carve-hexapdf#27 appended `Gem.default_dir` on the grounds
+      # that Ruby's own default gems need it; measured here, they do not.
+      # Default gems are found through `Gem.default_specifications_dir`
+      # (`/usr/lib/ruby/gems/<abi>/specifications/default` on this host), which
+      # is derived from neither `Gem.path` nor `Gem.default_dir` - `require
+      # "json"`, `"openssl"` and `"psych"` all still activate with `Gem.path`
+      # holding only the prefix below. Leaving the default directory on the
+      # path would have kept open the single most likely home for a stray
+      # engine, which is where an unqualified `gem install` on a runner puts
+      # one.
       - name: Install it the way a consumer would
         run: |
           export GEM_HOME="${RUNNER_TEMP}/consumer"
+          export GEM_PATH="${GEM_HOME}"
           gem install --no-document ./jekyll-carve-*.gem
-          echo "GEM_HOME=${GEM_HOME}" >> "$GITHUB_ENV"
+          {
+            echo "GEM_HOME=${GEM_HOME}"
+            echo "GEM_PATH=${GEM_PATH}"
+          } >> "$GITHUB_ENV"
 
       - name: Render the probe the floor was set for
         run: ruby script/consumer_engine_probe.rb
