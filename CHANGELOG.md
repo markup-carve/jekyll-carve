@@ -8,6 +8,14 @@ moves therefore get an entry of their own.
 
 ## Unreleased
 
+### Changed
+
+- The `carve-lang` dependency is bounded: `>= 0.1.1, < 0.2.0`. The floor did not
+  move. On the engine's own 0.x scheme `0.1` is the major and the third digit
+  the minor, so the previous open range admitted, by the engine's own rules, a
+  release declared breaking
+  ([#9](https://github.com/markup-carve/jekyll-carve/issues/9)).
+
 ### Added
 
 - `carve.symbols` in `_config.yml` supplies the `:name:` symbol map, as an
