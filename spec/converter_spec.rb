@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require "json"
+require "tmpdir"
+
 require "jekyll-carve"
 
 RSpec.describe Jekyll::Carve::Converter do
@@ -145,6 +148,35 @@ RSpec.describe Jekyll::Carve::Converter do
       it "parses the file once and reuses the map" do
         expect(File).to receive(:read).once.and_call_original
         3.times { converter.carve_symbols }
+      end
+    end
+
+    # Jekyll instantiates converters from Site#initialize while Site#process
+    # calls only reset, so ONE converter instance serves every rebuild under
+    # `jekyll serve --watch`. A map memoized outright would keep serving a file
+    # the author has since edited.
+    context "when a source file changes between builds" do
+      around do |example|
+        Dir.mktmpdir { |dir| @source = dir and example.run }
+      end
+
+      let(:config) { { "source" => @source, "carve" => { "symbols" => "symbols.json" } } }
+
+      def write_map(value)
+        path = File.join(@source, "symbols.json")
+        File.write(path, JSON.generate({ "smile" => value }))
+        # mtime has second granularity on some filesystems, and the two writes
+        # here are milliseconds apart; the size differs, which is the other half
+        # of the signature.
+        path
+      end
+
+      it "picks the edit up on the next render" do
+        write_map("FIRST")
+        expect(converter.convert("A :smile: here")).to include("FIRST")
+
+        write_map("SECOND-AND-LONGER")
+        expect(converter.convert("A :smile: here")).to include("SECOND-AND-LONGER")
       end
     end
 
