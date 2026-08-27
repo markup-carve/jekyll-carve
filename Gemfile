@@ -11,7 +11,7 @@ gemspec
 # The git source is deliberate, not an oversight. It used to be justified by
 # RubyGems being behind - 0.1.0 was all that was published, and 0.1.1 was an
 # unpublished draft (carve#499). That stopped being true on 2026-08-18, when
-# carve-lang 0.1.1 published; the source stays because a REVISION is a stronger
+# carve-lang 0.1.2 is current; the source stays because a REVISION is a stronger
 # statement than a version for a run whose job is to be reproducible, not
 # because RubyGems has nothing to offer.
 #
@@ -45,8 +45,8 @@ gemspec
 # lockfile. It is the wrong instrument twice over here:
 #
 #   * For the ENGINE it would be WEAKER than what is already there. A lockfile
-#     entry names a VERSION (`carve-lang (0.1.1)`); the `ref:` below names a
-#     COMMIT. Two carve-rb builds can both call themselves 0.1.1.
+#     entry names a VERSION (`carve-lang (0.1.2)`); the `ref:` below names a
+#     COMMIT. Two carve-rb builds can carry the same package version.
 #   * For everything else it would cost the oldest Ruby this gem supports.
 #     Measured 2026-08-21: `bundle install` here writes `BUNDLED WITH 4.0.18`,
 #     and bundler 4.0.x requires Ruby >= 3.2.0, while `ci.yml` runs a 3.1 leg
@@ -69,5 +69,5 @@ if carve_rb && !carve_rb.empty?
 
   gem "carve-lang", path: File.expand_path(carve_rb)
 else
-  gem "carve-lang", git: "https://github.com/markup-carve/carve-rb.git", ref: "f15f30a21e7a"  # v0.1.1
+  gem "carve-lang", git: "https://github.com/markup-carve/carve-rb.git", ref: "b7f3a91a4192576de92894adf3ab3c5332199eff"  # v0.1.2
 end

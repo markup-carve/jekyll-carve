@@ -8,10 +8,14 @@ moves therefore get an entry of their own.
 
 ## Unreleased
 
+## [0.1.1] - 2026-08-27
+
 ### Changed
 
-- The `carve-lang` dependency is bounded: `>= 0.1.1, < 0.2.0`. The floor did not
-  move. On the engine's own 0.x scheme `0.1` is the major and the third digit
+- The development pin moves to released `carve-lang` 0.1.2, so the suite covers
+  the current embedded engine and output surface. The supported consumer range
+  remains `>= 0.1.1, < 0.2.0`: 0.1.1 still satisfies this converter's API and
+  security requirements. On the engine's own 0.x scheme `0.1` is the major and the third digit
   the minor, so the previous open range admitted, by the engine's own rules, a
   release declared breaking
   ([#9](https://github.com/markup-carve/jekyll-carve/issues/9)).
