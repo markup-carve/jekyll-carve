@@ -126,6 +126,7 @@ jobs:
   publish:
     name: Publish to RubyGems
     runs-on: ubuntu-latest
+    environment: release
     needs: [verify]
     # OIDC TRUSTED PUBLISHING, not an API key. GitHub mints a short-lived token
     # naming this repository and workflow, RubyGems exchanges it for a
