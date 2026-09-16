@@ -130,6 +130,49 @@ reaches the output.
 > front matter, from a comment system, or from anything else a visitor can
 > influence.
 
+### `carve.includes` - pulling one file into another
+
+A Carve page can pull another file in with `{{ path }}`. It stays literal until
+the site asks:
+
+```yaml
+carve:
+  includes: true
+```
+
+Paths resolve relative to the file that wrote them, and nothing resolves outside
+the containment root. The root is Jekyll's source directory unless
+`carve.include_root` names another one, and an include that would leave it is
+not expanded.
+
+```yaml
+carve:
+  includes: true
+  include_root: /srv/shared/fragments
+```
+
+`carve.include_root` must be an **absolute** path. A relative one is refused
+rather than resolved, because resolving it lands on whatever directory the build
+ran from, which is not a root anyone chose. The page being rendered has to sit
+inside the root too.
+
+A target that cannot be read is reported against the page that asked for it, and
+the directive is left as written. The message does not say whether the file was
+missing or refused by containment: both report `include-unresolved`, so a page
+cannot be used to probe the filesystem. The class is at `--verbose`.
+
+Under `jekyll serve`, a page is rebuilt when a target it read changes, because
+every resolved target is registered with Jekyll's regeneration path.
+
+A conversion with no page behind it - the converter called directly on a String -
+leaves the directive literal, since there is no file for a relative path to
+resolve against.
+
+> [!NOTE]
+> Fragments under the source directory are pages in their own right, so Jekyll
+> will publish them. Exclude them in `_config.yml`, or keep them outside the
+> source and point `include_root` at the tree above both.
+
 ## Usage
 
 Create a page with a `.crv` extension. It MUST begin with Jekyll

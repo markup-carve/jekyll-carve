@@ -8,6 +8,20 @@ moves therefore get an entry of their own.
 
 ## Unreleased
 
+### Added
+
+- Expand `{{ path }}` includes for file-backed pages, contained to a root,
+  through new `carve.includes` and `carve.include_root` settings. Off by
+  default; a conversion with no page behind it stays literal. Every resolved
+  target is registered with Jekyll's regeneration path.
+  markup-carve/jekyll-carve#18
+
+### Changed
+
+- The development engine pin moves to carve-rb `main`, past
+  markup-carve/carve-rb#127, which is the revision that exposes contained
+  include expansion to Ruby. The supported consumer range is unchanged.
+
 ## [0.1.1] - 2026-08-27
 
 ### Changed
