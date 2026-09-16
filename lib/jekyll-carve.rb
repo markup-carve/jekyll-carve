@@ -59,9 +59,46 @@ module Jekyll
       #
       # Returns the rendered HTML String.
       def convert(content)
-        ::Carve.to_html(content.to_s,
-                        extensions: carve_extensions,
-                        symbols: carve_symbols)
+        document = Rendering.current
+        root = include_root
+        if root.nil? || document.nil? || document.path.to_s.empty?
+          return ::Carve.to_html(content.to_s,
+                                 extensions: carve_extensions,
+                                 symbols: carve_symbols)
+        end
+
+        begin
+          result = ::Carve.to_html_with_includes(content.to_s,
+                                                 root: root,
+                                                 source_path: document.path,
+                                                 extensions: carve_extensions,
+                                                 symbols: carve_symbols)
+        rescue ArgumentError => e
+          # A relative root, or a page outside it. Both are decided by the
+          # engine; what this adds is the key and the page to look at.
+          raise ArgumentError,
+                "carve.include_root: #{document.relative_path || document.path}: #{e.message}"
+        end
+        report_includes(result, document, root)
+        result[:value]
+      end
+
+      # The containment root configured under `carve.include_root`, or nil when
+      # `carve.includes` is off.
+      #
+      # A configured value is handed to the engine exactly as written. The
+      # engine refuses a relative root, and that refusal is what keeps
+      # containment off whatever directory the build ran from; expanding it
+      # here would mean it never fires. The default is Jekyll's own source
+      # directory, which this package derives rather than reads, so that one is
+      # expanded.
+      def include_root
+        return nil unless carve_config["includes"]
+
+        configured = carve_config["include_root"]
+        return configured.to_s if configured.is_a?(String) && !configured.empty?
+
+        File.expand_path(site_source)
       end
 
       # Carve extensions configured under `carve.extensions` in _config.yml.
@@ -128,6 +165,48 @@ module Jekyll
       end
 
       private
+
+      # Surface what expansion degraded, and record what it read.
+      def report_includes(result, document, root)
+        page = document.relative_path || document.path
+        Array(result[:warnings]).each do |warning|
+          origin = warning[:file]
+          where = origin && origin != page ? "#{page} (#{origin})" : page
+          Jekyll.logger.warn "Carve:", "#{where}: #{warning[:rule]}: #{warning[:message]}"
+        end
+        suppressed = result[:suppressedWarnings].to_i
+        if suppressed.positive?
+          Jekyll.logger.warn "Carve:",
+                             "#{page}: #{suppressed} further include warnings suppressed"
+        end
+        Array(result[:dependencies]).each do |dependency|
+          # A containment refusal and a missing file are the same warning, so a
+          # page cannot probe the filesystem (spec I7). The class that was
+          # collapsed is here, for the build's own log.
+          if dependency[:denial]
+            Jekyll.logger.debug "Carve:",
+                                "#{page}: include #{dependency[:path]}: #{dependency[:denial]}"
+            next
+          end
+
+          register_dependency(document, File.join(root, dependency[:path].to_s))
+        end
+      end
+
+      # Tell Jekyll the page has to be rebuilt when this target changes.
+      #
+      # Only a RESOLVED target is registered. An unresolved dependency reports
+      # the directive as written rather than a path relative to the root, so
+      # joining it onto the root names the wrong file: a nested `missing.crv`
+      # would be recorded against the root rather than against the directory
+      # its parent sits in. A fragment appearing later is covered by Jekyll's
+      # own watch over the source directory.
+      def register_dependency(document, target)
+        regenerator = document.site&.regenerator
+        return unless regenerator.respond_to?(:add_dependency)
+
+        regenerator.add_dependency(document.path, target)
+      end
 
       # The `carve` table from _config.yml, or an empty Hash.
       def carve_config
@@ -247,7 +326,40 @@ module Jekyll
         end
       end
     end
+
+    # Which document Jekyll is rendering right now.
+    #
+    # `Jekyll::Converter#convert` is handed a String and nothing else, so a
+    # converter cannot see the file the body came from - and an include has to
+    # resolve against that file. The `:pre_render` hook carries it, and Jekyll
+    # renders documents one at a time, so the current one is a thread-local
+    # rather than a queue.
+    module Rendering
+      KEY = :jekyll_carve_document
+
+      module_function
+
+      def current
+        Thread.current[KEY]
+      end
+
+      def with(document)
+        Thread.current[KEY] = document
+      end
+
+      def clear
+        Thread.current[KEY] = nil
+      end
+    end
   end
+end
+
+Jekyll::Hooks.register %i[pages documents], :pre_render do |document|
+  Jekyll::Carve::Rendering.with(document)
+end
+
+Jekyll::Hooks.register %i[pages documents], :post_render do |_document|
+  Jekyll::Carve::Rendering.clear
 end
 
 # Resolve the symbol map once per build rather than once per process.
