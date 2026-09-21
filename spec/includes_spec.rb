@@ -70,6 +70,29 @@ RSpec.describe "Carve includes" do
       html = converter.convert("{{ sub/frag.crv }}\n")
       expect(html).to include("{{ sub/frag.crv }}")
     end
+
+    context "on an engine before carve-lang 0.1.4" do
+      around do |example|
+        original = ::Carve.respond_to?(:to_html_with_includes) && ::Carve.method(:to_html_with_includes)
+        ::Carve.singleton_class.send(:remove_method, :to_html_with_includes) if original
+        begin
+          example.run
+        ensure
+          ::Carve.define_singleton_method(:to_html_with_includes, original) if original
+        end
+      end
+
+      it "names the upgrade instead of raising NoMethodError" do
+        expect { render("index.crv", "{{ sub/frag.crv }}\n") }
+          .to raise_error(ArgumentError, /carve\.includes: .*upgrade it to 0\.1\.4 or later/)
+      end
+
+      it "still renders a page while includes are off" do
+        plain = Jekyll::Carve::Converter.new("source" => File.join(root, "site"))
+        Jekyll::Carve::Rendering.with(page("index.crv", "plain text\n"))
+        expect(plain.convert("plain text\n")).to include("<p>plain text</p>")
+      end
+    end
   end
 
   describe "the root" do
