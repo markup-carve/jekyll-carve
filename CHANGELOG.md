@@ -6,21 +6,23 @@ Rendering is done by the Carve engine (`carve-lang`, the magnus binding over
 carve-rs), so an engine change can alter output with no plugin diff. Engine
 moves therefore get an entry of their own.
 
-## Unreleased
+## [0.1.2] - 2026-09-21
 
 ### Added
 
 - Expand `{{ path }}` includes for file-backed pages, contained to a root,
   through new `carve.includes` and `carve.include_root` settings. Off by
   default; a conversion with no page behind it stays literal. Every resolved
-  target is registered with Jekyll's regeneration path.
-  markup-carve/jekyll-carve#18
+  target is registered with Jekyll's regeneration path. Include expansion needs
+  carve-lang 0.1.4; on an older engine a page with `carve.includes` on raises an
+  ArgumentError naming the installed version instead of a `NoMethodError`.
+  markup-carve/jekyll-carve#18, markup-carve/jekyll-carve#22
 
 ### Changed
 
-- The development engine pin moves to carve-rb `main`, past
-  markup-carve/carve-rb#127, which is the revision that exposes contained
-  include expansion to Ruby. The supported consumer range is unchanged.
+- The development engine pin moves to released carve-rb v0.1.4. The supported
+  consumer range stays `>= 0.1.1, < 0.2.0`: everything but the opt-in include
+  path works on 0.1.1 through 0.1.3.
 
 ## [0.1.1] - 2026-08-27
 
