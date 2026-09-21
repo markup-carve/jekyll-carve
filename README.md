@@ -140,6 +140,9 @@ carve:
   includes: true
 ```
 
+Includes need carve-lang 0.1.4 or later. On an older engine, a page that
+reaches them stops the build with a message naming the upgrade.
+
 Paths resolve relative to the file that wrote them, and nothing resolves outside
 the containment root. The root is Jekyll's source directory unless
 `carve.include_root` names another one, and an include that would leave it is

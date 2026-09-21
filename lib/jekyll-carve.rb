@@ -66,6 +66,12 @@ module Jekyll
                                  extensions: carve_extensions,
                                  symbols: carve_symbols)
         end
+        # carve-lang added this entry point in 0.1.4; the floor stays lower for sites without includes.
+        unless ::Carve.respond_to?(:to_html_with_includes)
+          raise ArgumentError,
+                "carve.includes: the installed carve-lang (#{::Carve::VERSION}) has no " \
+                "to_html_with_includes; upgrade it to 0.1.4 or later, or set carve.includes: false"
+        end
 
         begin
           result = ::Carve.to_html_with_includes(content.to_s,
