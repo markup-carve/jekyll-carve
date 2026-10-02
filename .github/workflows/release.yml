@@ -20,10 +20,14 @@ on:
   # before publishing.
   workflow_dispatch:
 
+# Jobs carry an explicit timeout-minutes: without one GitHub applies a
+# 360-minute default, long enough for a stalled job to go unnoticed.
+
 jobs:
   verify:
     name: Build the gem and prove the engine under it is patched
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
 
@@ -126,6 +130,7 @@ jobs:
   publish:
     name: Publish to RubyGems
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment: release
     needs: [verify]
     # OIDC TRUSTED PUBLISHING, not an API key. GitHub mints a short-lived token

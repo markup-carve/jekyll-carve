@@ -31,9 +31,13 @@ on:
     - cron: "0 5 * * *"
   workflow_dispatch:
 
+# Jobs carry an explicit timeout-minutes: without one GitHub applies a
+# 360-minute default, long enough for a stalled job to go unnoticed.
+
 jobs:
   drift:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -80,6 +84,7 @@ jobs:
   # suite is what catches a transitive gem changing under it.
   suite:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -129,6 +134,7 @@ jobs:
   consumer:
     name: The engine a consumer resolves
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
