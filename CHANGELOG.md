@@ -6,6 +6,29 @@ Rendering is done by the Carve engine (`carve-lang`, the magnus binding over
 carve-rs), so an engine change can alter output with no plugin diff. Engine
 moves therefore get an entry of their own.
 
+## [Unreleased]
+
+### Changed
+
+- The development engine pin moves from carve-rb v0.1.4 to v0.1.7, so a routine
+  run here measures the engine a consumer resolves rather than one three
+  releases behind it. Four rendering changes come with it, each visible on a
+  published page: a cross-reference whose target differs only in case stays
+  literal text rather than resolving; a named container whose metadata slot is
+  not separated by a space opens the container rather than rendering its opener
+  as prose; explicit table body counts are consumed into one `<tbody>` per count
+  instead of leaking into the output as a `body-rows` attribute on `<table>`;
+  and a fence that is a description body's own block gives an empty payload no
+  content. markup-carve/jekyll-carve#28
+
+### Added
+
+- `spec/rendering_rulings_spec.rb` holds the engine to those four rulings by
+  direction rather than by a golden, because nothing in the suite could see a
+  rendering change before: the pin sat three releases behind with all 64
+  examples green. Every example in the new file fails on carve-rb v0.1.4.
+  markup-carve/jekyll-carve#28
+
 ## [0.1.2] - 2026-09-21
 
 ### Added

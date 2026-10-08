@@ -10,10 +10,20 @@ gemspec
 #
 # The git source is deliberate, not an oversight. It used to be justified by
 # RubyGems being behind - 0.1.0 was all that was published, and 0.1.1 was an
-# unpublished draft (carve#499). That stopped being true on 2026-08-18, when
-# carve-lang 0.1.2 is current; the source stays because a REVISION is a stronger
-# statement than a version for a run whose job is to be reproducible, not
-# because RubyGems has nothing to offer.
+# unpublished draft (carve#499). That stopped being true on 2026-08-18, and the
+# gap has since reversed: carve-lang 0.1.7 is current on RubyGems, which is what
+# a consumer of this gem resolves through the gemspec range. The source stays
+# because a REVISION is a stronger statement than a version for a run whose job
+# is to be reproducible, not because RubyGems has nothing to offer.
+#
+# WHICH MAKES THE REF SOMETHING TO KEEP MOVING. The drift job below reports a
+# lag as a `::warning::` and stays green, by design - upstream moving is not
+# this repo's failure - but nothing here opens a bump pull request the way
+# markup-carve/wp-carve and markup-carve/intellij-carve do. So the pin sat at
+# carve-rb v0.1.4 while v0.1.5, v0.1.6 and v0.1.7 published, and four of seven
+# boundary shapes rendered differently between the pinned engine and the one a
+# consumer installs. spec/rendering_rulings_spec.rb is what notices that now:
+# every example in it failed at v0.1.4.
 #
 # The consequence is that no routine run here resolves the engine a consumer
 # gets. That is what the `consumer` job in
@@ -69,5 +79,5 @@ if carve_rb && !carve_rb.empty?
 
   gem "carve-lang", path: File.expand_path(carve_rb)
 else
-  gem "carve-lang", git: "https://github.com/markup-carve/carve-rb.git", ref: "5069b24edd2c538c45ce90fa6310de20822e53fa"  # carve-rb v0.1.4, identical to its main
+  gem "carve-lang", git: "https://github.com/markup-carve/carve-rb.git", ref: "048765a975adeae1d73c22fe9069ccea2fbfd9bd"  # carve-rb v0.1.7, identical to its main
 end
