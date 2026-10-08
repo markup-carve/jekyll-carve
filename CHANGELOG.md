@@ -8,6 +8,8 @@ moves therefore get an entry of their own.
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-10-08
+
 ### Changed
 
 - The development engine pin moves from carve-rb v0.1.4 to v0.1.7, so a routine
