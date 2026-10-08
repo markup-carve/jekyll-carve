@@ -168,6 +168,7 @@ jobs:
       # Found by listing rather than `gh release view <tag>`: a draft's tag is
       # not a git ref, so addressing one by tag can match nothing, change
       # nothing and still exit 0.
+      - uses: actions/checkout@v4
       - name: A release draft for this tag exists and has notes
         if: (github.event_name != 'workflow_dispatch' || inputs.version != '')
         env:
@@ -199,7 +200,6 @@ jobs:
 
       # Pushes the artifact the gate verified rather than building a second
       # copy, so what RubyGems serves is the bytes that rendered the probe.
-      - uses: actions/checkout@v4
       - name: Create the release tag after approval
         if: github.event_name == 'workflow_dispatch' && inputs.version != ''
         run: |
