@@ -8,6 +8,14 @@ moves therefore get an entry of their own.
 
 ## [Unreleased]
 
+### Changed
+
+- The development engine pin moves from carve-rb v0.1.7 to v0.1.10, the
+  version a consumer now resolves from RubyGems. Two rendering changes come
+  with it: a quote-prefixed `+` needs a space after each `>`, so `>+` renders
+  as text, and an include of a file that is not valid UTF-8 is refused with an
+  `include-non-text` warning instead of being spliced.
+
 ## [0.1.3] - 2026-10-08
 
 ### Changed

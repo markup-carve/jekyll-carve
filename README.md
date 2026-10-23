@@ -197,6 +197,28 @@ This is /italic/ and *bold* text.
 Note Carve's inline syntax: `*...*` is **strong** (bold) and `/.../` is
 _emphasis_ (italic) - the opposite of Markdown.
 
+## Highlighting Carve code blocks
+
+This plugin renders `.crv` pages. To highlight a ` ```carve ` block inside a
+Markdown page, add [rouge-carve](https://github.com/markup-carve/rouge-carve),
+which registers a Carve lexer with Rouge, Jekyll's default highlighter:
+
+```ruby
+# Gemfile
+group :jekyll_plugins do
+  gem "rouge-carve"
+end
+```
+
+Jekyll requires every gem in the `jekyll_plugins` group on its own. Without
+that group, list it in `_config.yml` instead:
+
+```yaml
+plugins:
+  - jekyll-carve
+  - rouge-carve
+```
+
 ## Important: Jekyll front matter vs. Carve frontmatter
 
 This is the one nuance to understand:
