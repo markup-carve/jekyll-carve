@@ -1,29 +1,18 @@
 name: Engine drift
 
-# The engine is a GIT DEPENDENCY pinned to a revision. A pin makes drift
-# deliberate, but nothing notices when the pin has fallen behind - and a
-# push-only CI reports the state of the day someone last touched the repo.
+# The development engine is the released carve-lang gem at an exact version
+# (see Gemfile). A pin makes drift deliberate, but nothing notices when the pin
+# has fallen behind, and a push-only CI reports the state of the day someone
+# last touched the repo.
 #
-# There are two kinds of drift, and this workflow now watches both. The `drift`
-# job watches the carve-rb GIT repository, which is what the development pin
-# follows. The `consumer` job watches RUBYGEMS, which is what the gemspec range
-# resolves and therefore the only thing a user of this gem ever sees. Neither
-# substitutes for the other: carve-lang 0.1.1 published on 2026-08-18 and
-# nothing in this repository noticed, because every routine run builds the git
-# pin instead.
+# The `drift` job compares the pinned version with the newest carve-lang on
+# RubyGems. The `suite` job runs the real suite against the pin, so a
+# transitive gem changing under it shows up. The `consumer` job installs the
+# built gem and lets RubyGems resolve carve-lang through the gemspec range,
+# which is what a user of this gem gets.
 #
-# That is not hypothetical across the org. carve-hexapdf has the identical
-# Gemfile: two AST renames landed upstream, it was not pushed for five days, and
-# its badge stayed green on a stale run while a fresh install rendered bold text
-# unstyled and dropped every footnote marker (carve-hexapdf#10). The pin from #1
-# stops that happening by surprise; this job is what tells you the pin is old
-# before someone else finds out.
-#
-# It reports rather than gates on lag: the engine moving is not a defect here,
-# and a job that goes red for something outside the repository teaches people to
-# ignore it. It DOES fail when the pinned revision is not a real commit on the
-# engine's main - a typo, a force-pushed branch, a revision that no longer
-# exists - because that is a broken build waiting to happen.
+# Lag is reported, not gated: the engine moving is not a defect here. A pin
+# that names no released version fails, because that build is already broken.
 
 on:
   schedule:
@@ -37,46 +26,27 @@ on:
 jobs:
   drift:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check out carve-rb
-        uses: actions/checkout@v4
-        with:
-          repository: markup-carve/carve-rb
-          path: carve-rb
-          fetch-depth: 0
-
-      - name: Compare the pinned revision against carve-rb main
+      - name: Compare the pinned version against RubyGems
         run: |
           set -euo pipefail
-          # ABBREVIATED REFS COUNT. This matched `[0-9a-f]{40}` until now, so
-          # when #4 wrote a 12-hex ref the grep found nothing - and under
-          # `set -euo pipefail` the assignment itself exited 1, before the
-          # error message below could say why. The daily job failed that way
-          # from 2026-08-19 (run 32335897571) and reported no lag at all in
-          # between, which is the failure mode this whole workflow exists to
-          # prevent, one level up.
-          ref="$(sed -n 's/.*ref: "\([0-9a-f]\{7,40\}\)".*/\1/p' Gemfile | head -1)"
-          if [ -z "${ref}" ]; then
-            echo "::error::no carve-lang revision found in Gemfile; the engine dependency is not pinned"
+          pinned="$(sed -n 's/^ *gem "carve-lang", "=\{0,1\} *\([0-9][0-9.]*\)".*/\1/p' Gemfile | head -1)"
+          if [ -z "${pinned}" ]; then
+            echo "::error::no exact carve-lang version found in Gemfile; the engine dependency is not pinned"
             exit 1
           fi
-          rev="$(git -C carve-rb rev-parse --verify "${ref}^{commit}" 2>/dev/null || true)"
-          if [ -z "${rev}" ]; then
-            echo "::error::Gemfile pins ${ref}, which is not a commit in carve-rb"
+          versions="$(curl -fsS --retry 3 https://rubygems.org/api/v1/versions/carve-lang.json)"
+          if ! printf '%s' "${versions}" | jq -e --arg v "${pinned}" 'any(.[]; .number == $v)' > /dev/null; then
+            echo "::error::Gemfile pins carve-lang ${pinned}, which RubyGems does not serve"
             exit 1
           fi
-          if ! git -C carve-rb merge-base --is-ancestor "${rev}" origin/main; then
-            echo "::error::carve-rb ${rev} is not on main, so the pin came from an unmerged or rewritten branch"
-            exit 1
-          fi
-          behind="$(git -C carve-rb rev-list --count "${rev}..origin/main")"
-          echo "pinned engine: carve-rb ${rev} ($(git -C carve-rb log -1 --format=%s "${rev}"))"
-          echo "carve-rb main is ${behind} commit(s) ahead"
-          if [ "${behind}" -gt 0 ]; then
-            echo "::warning::the pinned engine is ${behind} carve-rb commit(s) behind main"
+          latest="$(curl -fsS --retry 3 https://rubygems.org/api/v1/versions/carve-lang/latest.json | jq -r .version)"
+          echo "pinned engine: carve-lang ${pinned}; newest on RubyGems: ${latest}"
+          if [ "${pinned}" != "${latest}" ]; then
+            echo "::warning::the pinned engine ${pinned} is behind carve-lang ${latest}"
           fi
 
   # The pin makes the ENGINE deterministic; everything else in the bundle still
@@ -119,9 +89,9 @@ jobs:
 
   # WHAT A CONSUMER GETS, WHICH NO OTHER ROUTINE RUN HERE ASKS.
   #
-  # Every job above builds the carve-rb revision `Gemfile` pins, so the gemspec
-  # range - the only thing a user of this gem resolves through - is exercised
-  # nowhere between releases. That is the cost of pinning: no pinned run ever
+  # Every job above measures the version `Gemfile` pins, so the gemspec range -
+  # the only thing a user of this gem resolves through - is exercised nowhere
+  # between releases. That is the cost of pinning: no pinned run ever
   # meets a carve-lang published after the pin, so an engine release that broke
   # rendering would sit unnoticed until someone raised the pin by hand. Which is
   # the same silence the pin was added to end, pointing the other way.

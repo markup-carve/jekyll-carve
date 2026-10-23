@@ -3,9 +3,9 @@
 
 # WHAT DOES AN INSTALL OF THIS GEM ACTUALLY RENDER?
 #
-# `Gemfile` pins the engine by carve-rb revision, so no ordinary run in this
-# repository ever resolves `carve-lang` from RubyGems. A consumer only ever
-# does. Those are different engines, and this repository has already been bitten
+# `Gemfile` pins one exact carve-lang version, so no ordinary run in this
+# repository resolves `carve-lang` through the gemspec range. A consumer only
+# ever does. Those are different engines, and this repository has already been bitten
 # by the difference - which is why the question is asked of an INSTALLED gem in
 # an isolated GEM_HOME rather than of the checkout.
 #
