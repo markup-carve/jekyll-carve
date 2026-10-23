@@ -45,7 +45,8 @@ jobs:
           fi
           latest="$(curl -fsS --retry 3 https://rubygems.org/api/v1/versions/carve-lang/latest.json | jq -r .version)"
           echo "pinned engine: carve-lang ${pinned}; newest on RubyGems: ${latest}"
-          if [ "${pinned}" != "${latest}" ]; then
+          newest="$(printf '%s\n%s\n' "${pinned}" "${latest}" | sort -V | tail -1)"
+          if [ "${newest}" != "${pinned}" ]; then
             echo "::warning::the pinned engine ${pinned} is behind carve-lang ${latest}"
           fi
 
