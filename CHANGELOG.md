@@ -8,7 +8,17 @@ moves therefore get an entry of their own.
 
 ## [Unreleased]
 
+### Added
+
+- `carve.lint: true` reports Carve lint findings as build warnings with the
+  page, line and rule id; `carve.lint: strict` fails the build after every page
+  is reported. With `carve.includes` on, included files are linted too.
+  markup-carve/jekyll-carve#34
+
 ### Changed
+
+- carve-lang 0.1.11 is the minimum engine, because `carve.lint` needs the
+  linter it is the first to expose. markup-carve/jekyll-carve#34
 
 - The development engine pin moves from carve-rb v0.1.7 to v0.1.10, the
   version a consumer now resolves from RubyGems. Two rendering changes come

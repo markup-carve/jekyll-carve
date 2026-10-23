@@ -11,7 +11,8 @@
 # regressed ONLY the sanitization, keeping the API this plugin calls, would
 # leave the suite entirely green - which is what this file is for.
 #
-# The floor is `>= 0.1.1`, and it rests on two independent claims, both measured
+# The floor was `>= 0.1.1` before `carve.lint` raised it to 0.1.11 (see the
+# lint example below). The 0.1.1 floor rests on two independent claims, measured
 # here rather than asserted in a comment. Both were verified against carve-lang
 # 0.1.0 and 0.1.1 on 2026-08-21.
 #
@@ -56,6 +57,13 @@ RSpec.describe "the carve-lang floor" do
       expect(html).not_to include("javascript:"),
                           "the resolved carve-lang (#{Carve::VERSION}) emitted an unsanitized " \
                           "javascript: URL from a list-valued attribute: #{html.strip}"
+    end
+  end
+
+  describe "the lint entry point carve.lint calls" do
+    # The reason the floor is 0.1.11 rather than 0.1.1.
+    it "exists in the resolved engine" do
+      expect(Carve).to respond_to(:lint)
     end
   end
 

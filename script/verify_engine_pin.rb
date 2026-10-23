@@ -3,14 +3,11 @@
 
 # WHAT ENGINE DID THIS RUN ACTUALLY MEASURE?
 #
-# `Gemfile` pins carve-lang to a carve-rb revision, which is a stronger
-# statement than a lockfile entry: a lockfile would name a VERSION, the ref
-# names a commit. But nothing read it back, and a pin nothing verifies is not a
-# pin. Three ways of measuring a different engine all left `bundle exec rspec`
-# green and said nothing:
+# `Gemfile` pins carve-lang to an exact released version. A pin nothing reads
+# back is not a pin. Three ways of measuring a different engine all left
+# `bundle exec rspec` green and said nothing:
 #
-#   * the `ref:` is dropped or edited to something that no longer resolves, so
-#     the bundle follows carve-rb's default branch;
+#   * the version is dropped or loosened, so the bundle floats;
 #   * `CARVE_RB_PATH` is set in the environment, which swaps the pinned engine
 #     for whatever a sibling working tree is parked on - the failure #3 was
 #     opened for, where a suite was 12 of 12 green over an engine that still
@@ -26,7 +23,7 @@
 # where bundler records what it RESOLVED, as opposed to what was asked for.
 
 ENGINE = "carve-lang"
-ENGINE_REPO = "carve-rb"
+REGISTRY = "rubygems.org"
 
 def refuse(message)
   # GitHub renders `::error::` as an annotation; elsewhere it is just a prefix.
@@ -37,9 +34,9 @@ end
 # --- 1. What does the Gemfile ask for? ---------------------------------------
 
 gemfile = File.read("Gemfile")
-pinned = gemfile[/ref:\s*["']([0-9a-f]{7,40})["']/, 1]
+pinned = gemfile[/^\s*gem\s+["']#{ENGINE}["'],\s*["']=?\s*(\d+\.\d+\.\d+)["']/, 1]
 if pinned.nil?
-  refuse "Gemfile names no #{ENGINE} revision, so this run measured an unstated engine"
+  refuse "Gemfile names no exact #{ENGINE} version, so this run measured an unstated engine"
 end
 
 # --- 2. What did bundler resolve? --------------------------------------------
@@ -66,23 +63,24 @@ end
 owner = blocks.find { |b| b[:specs].any? { |(name, _)| name == ENGINE } }
 refuse "the resolved bundle contains no #{ENGINE} at all" if owner.nil?
 
-resolved_version = owner[:specs].find { |(name, _)| name == ENGINE }.last
+# A platform gem resolves as `0.1.11-x86_64-linux`; the version is the part
+# before the platform.
+resolved_version = owner[:specs].find { |(name, _)| name == ENGINE }.last.split("-").first
 
 case owner[:kind]
-when "GIT"
-  unless owner[:remote].to_s.include?(ENGINE_REPO)
-    refuse "#{ENGINE} was resolved from #{owner[:remote]}, which is not #{ENGINE_REPO}"
+when "GEM"
+  unless owner[:remote].to_s.include?(REGISTRY)
+    refuse "#{ENGINE} was resolved from #{owner[:remote]}, which is not #{REGISTRY}"
   end
-  revision = owner[:revision].to_s
-  unless revision.start_with?(pinned)
-    refuse "Gemfile pins #{ENGINE} at #{pinned}, but this bundle resolved #{revision}"
+  unless resolved_version == pinned
+    refuse "Gemfile pins #{ENGINE} #{pinned}, but this bundle resolved #{resolved_version}"
   end
 when "PATH"
   refuse "#{ENGINE} was resolved from the path #{owner[:remote]}, not the pinned " \
          "#{pinned} - CARVE_RB_PATH is set, so this run measured a working tree"
 else
   refuse "#{ENGINE} was resolved from #{owner[:kind].downcase} (#{owner[:remote]}) " \
-         "rather than from the pinned #{ENGINE_REPO} revision #{pinned}"
+         "rather than from #{REGISTRY} at #{pinned}"
 end
 
 # --- 3. Is that the library that actually loads? -----------------------------
@@ -98,4 +96,4 @@ unless loaded == resolved_version
   refuse "the bundle resolved #{ENGINE} #{resolved_version} but #{loaded} is what loaded"
 end
 
-puts "#{ENGINE} #{loaded} from #{ENGINE_REPO} #{owner[:revision]} (Gemfile pins #{pinned})"
+puts "#{ENGINE} #{loaded} from #{owner[:remote]} (Gemfile pins #{pinned})"
