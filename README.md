@@ -176,6 +176,45 @@ resolve against.
 > will publish them. Exclude them in `_config.yml`, or keep them outside the
 > source and point `include_root` at the tree above both.
 
+### `carve.lint` - reporting what renders but is lost
+
+Carve's linter reports constructs that parse and render, but not the way the
+author meant: a block attribute that attaches to nothing, a link to an id no
+heading has, an unclosed code fence. Turn it on to see them as build warnings:
+
+```yaml
+carve:
+  lint: true
+```
+
+```
+Carve lint: guide/intro.crv:7:1: unattached-block-attribute: This block attribute reaches no block: ...
+```
+
+Each warning names the page, the line and column in the file, and the rule id.
+The line counts the front matter, so it matches your editor; a Liquid tag that
+expands to several lines shifts the lines below it, since the linter reads the
+page after Liquid. Pages still render.
+
+To fail the build instead, use `strict`:
+
+```yaml
+carve:
+  lint: strict
+```
+
+Every page is linted and reported first, then `jekyll build` stops with an
+error before writing the site.
+
+The linter reads the same `carve.extensions` the pages render with. With
+`carve.includes` on it also lints each included Carve file, and a finding there
+names that file: `index.crv (parts/intro.crv:3:1): ...`. Include warnings such
+as `include-unresolved` are logged once, by the include pass, but count toward
+`strict`.
+
+`carve.lint` needs carve-lang 0.1.11 or later, the first engine that exposes the
+linter. That is why it is this gem's floor.
+
 ## Usage
 
 Create a page with a `.crv` extension. It MUST begin with Jekyll

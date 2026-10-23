@@ -21,7 +21,7 @@ bundle exec ruby script/verify_engine_pin.rb
 ```
 
 An installed copy of this gem resolves differently, through the range
-`jekyll-carve.gemspec` declares - today `>= 0.1.1, < 0.2.0`. The two are
+`jekyll-carve.gemspec` declares - today `>= 0.1.11, < 0.2.0`. The two are
 deliberately not the same engine, and both are checked:
 `spec/engine_floor_spec.rb` asks whether the engine under `bundle exec rspec`
 still does what the floor claims, and `script/consumer_engine_probe.rb` asks the

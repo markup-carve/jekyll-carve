@@ -61,32 +61,46 @@ module Jekyll
       def convert(content)
         document = Rendering.current
         root = include_root
-        if root.nil? || document.nil? || document.path.to_s.empty?
-          return ::Carve.to_html(content.to_s,
-                                 extensions: carve_extensions,
-                                 symbols: carve_symbols)
-        end
-        # carve-lang added this entry point in 0.1.4; the floor stays lower for sites without includes.
-        unless ::Carve.respond_to?(:to_html_with_includes)
-          raise ArgumentError,
-                "carve.includes: the installed carve-lang (#{::Carve::VERSION}) has no " \
-                "to_html_with_includes; upgrade it to 0.1.4 or later, or set carve.includes: false"
-        end
+        include_page = !(root.nil? || document.nil? || document.path.to_s.empty?)
+        html = render(content.to_s, document, include_page ? root : nil)
+        lint(content.to_s, document, include_page ? root : nil) if lint_mode
+        html
+      end
 
-        begin
-          result = ::Carve.to_html_with_includes(content.to_s,
-                                                 root: root,
-                                                 source_path: document.path,
-                                                 extensions: carve_extensions,
-                                                 symbols: carve_symbols)
-        rescue ArgumentError => e
-          # A relative root, or a page outside it. Both are decided by the
-          # engine; what this adds is the key and the page to look at.
+      # How `carve.lint` is set: nil (off), :warn or :strict.
+      #
+      # `true` logs each finding as a build warning; `"strict"` also fails the
+      # build once every page has been linted.
+      def lint_mode
+        case (value = carve_config["lint"])
+        when nil, false then nil
+        when true then :warn
+        when "strict", :strict then :strict
+        else
           raise ArgumentError,
-                "carve.include_root: #{document.relative_path || document.path}: #{e.message}"
+                "carve.lint: expected true, false or \"strict\", got #{value.inspect}"
         end
-        report_includes(result, document, root)
-        result[:value]
+      end
+
+      # Lint findings counted under `carve.lint: strict` since the last reset.
+      def lint_findings
+        @lint_findings ||= 0
+      end
+
+      # Fail the build when strict lint counted a finding.
+      #
+      # Called from the `:site, :post_render` hook below, so every page is
+      # linted and reported before the build stops.
+      def check_lint!
+        return unless lint_mode == :strict && lint_findings.positive?
+
+        raise Jekyll::Errors::FatalException,
+              "carve.lint: #{lint_findings} lint finding(s) under strict mode; see the warnings above"
+      end
+
+      # Drop the strict-mode count, so each build is judged on its own.
+      def reset_lint
+        @lint_findings = 0
       end
 
       # The containment root configured under `carve.include_root`, or nil when
@@ -171,6 +185,71 @@ module Jekyll
       end
 
       private
+
+      def render(content, document, root)
+        if root.nil?
+          return ::Carve.to_html(content,
+                                 extensions: carve_extensions,
+                                 symbols: carve_symbols)
+        end
+        # carve-lang added this entry point in 0.1.4; the floor stays lower for sites without includes.
+        unless ::Carve.respond_to?(:to_html_with_includes)
+          raise ArgumentError,
+                "carve.includes: the installed carve-lang (#{::Carve::VERSION}) has no " \
+                "to_html_with_includes; upgrade it to 0.1.4 or later, or set carve.includes: false"
+        end
+
+        begin
+          result = ::Carve.to_html_with_includes(content,
+                                                 root: root,
+                                                 source_path: document.path,
+                                                 extensions: carve_extensions,
+                                                 symbols: carve_symbols)
+        rescue ArgumentError => e
+          # A relative root, or a page outside it. Both are decided by the
+          # engine; what this adds is the key and the page to look at.
+          raise ArgumentError,
+                "carve.include_root: #{document.relative_path || document.path}: #{e.message}"
+        end
+        report_includes(result, document, root)
+        result[:value]
+      end
+
+      # Log each lint finding as a build warning, located in the source file.
+      #
+      # Runs after rendering, so a bad include root is reported by the render
+      # path with its own message. With includes on, the include-* findings
+      # repeat the include warnings `report_includes` already logged, so they
+      # are counted but not logged twice.
+      def lint(content, document, root)
+        page = document && (document.relative_path || document.path).to_s
+        page = "(no page)" if page.nil? || page.empty?
+        options = { extensions: carve_extensions }
+        options.update(root: root, source_path: document.path) if root
+        findings = ::Carve.lint(content, **options)
+        offset = front_matter_lines(document)
+        findings.each do |finding|
+          next if root && finding[:rule].start_with?("include-")
+
+          where = if finding[:file]
+                    "#{page} (#{finding[:file]}:#{finding[:line]}:#{finding[:column]})"
+                  else
+                    "#{page}:#{finding[:line] + offset}:#{finding[:column]}"
+                  end
+          Jekyll.logger.warn "Carve lint:", "#{where}: #{finding[:rule]}: #{finding[:message]}"
+        end
+        @lint_findings = lint_findings + findings.size if lint_mode == :strict
+      end
+
+      # Lines of YAML front matter above the body, so a finding names the line
+      # in the file. Jekyll strips the front matter before `convert` sees it.
+      def front_matter_lines(document)
+        path = document&.path.to_s
+        return 0 if path.empty? || !File.file?(path)
+
+        match = Jekyll::Document::YAML_FRONT_MATTER_REGEXP.match(File.read(path, encoding: "bom|utf-8"))
+        match ? match[0].count("\n") : 0
+      end
 
       # Surface what expansion degraded, and record what it read.
       def report_includes(result, document, root)
@@ -379,6 +458,17 @@ end
 # BEFORE `setup`, and `setup` is what builds the converter list.
 Jekyll::Hooks.register :site, :after_reset do |site|
   Array(site.converters).each do |converter|
-    converter.reset_symbols if converter.is_a?(Jekyll::Carve::Converter)
+    next unless converter.is_a?(Jekyll::Carve::Converter)
+
+    converter.reset_symbols
+    converter.reset_lint
+  end
+end
+
+# `carve.lint: strict` fails here, after every page was linted and before any
+# output is written.
+Jekyll::Hooks.register :site, :post_render do |site|
+  Array(site.converters).each do |converter|
+    converter.check_lint! if converter.is_a?(Jekyll::Carve::Converter)
   end
 end

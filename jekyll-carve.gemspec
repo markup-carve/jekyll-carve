@@ -50,10 +50,16 @@ Gem::Specification.new do |spec|
   # which someone has to look. Without it this range admitted, by the engine's
   # own rules, exactly the changes that break this plugin.
   #
+  # RAISED TO 0.1.11 for `carve.lint`, and for nothing else. That option calls
+  # `Carve.lint`, which carve-lang first ships in 0.1.11; every other feature
+  # still works on 0.1.1. The floor follows the newest entry point the plugin
+  # calls rather than gating one option at runtime, so a site that turns lint
+  # on cannot resolve an engine without it. spec/engine_floor_spec.rb holds it.
+  #
   # A range is the right shape for a consumer and the wrong one for a test run,
   # so `Gemfile` pins a carve-rb revision for development instead. Those are
   # different engines on purpose; see that file.
-  spec.add_dependency "carve-lang", ">= 0.1.1", "< 0.2.0"
+  spec.add_dependency "carve-lang", ">= 0.1.11", "< 0.2.0"
   spec.add_dependency "jekyll", ">= 4.0"
 
   spec.add_development_dependency "rspec", "~> 3.0"
