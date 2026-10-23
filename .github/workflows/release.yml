@@ -124,7 +124,7 @@ jobs:
           gem install --no-document "./${gem}"
           ruby script/consumer_engine_probe.rb
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: gem
           path: jekyll-carve-*.gem
@@ -165,7 +165,7 @@ jobs:
       # Found by listing rather than `gh release view <tag>`: a draft's tag is
       # not a git ref, so addressing one by tag can match nothing, change
       # nothing and still exit 0.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: A release draft for this tag exists and has notes
         if: (github.event_name != 'workflow_dispatch' || inputs.version != '')
         env:
@@ -185,7 +185,7 @@ jobs:
             || { echo "::error::the release for $RELEASE_TAG has no notes"; exit 1; }
           printf '%s' "$release" | jq -r '"draft=\(.draft) tag=\(.tag_name)"'
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: gem
 
