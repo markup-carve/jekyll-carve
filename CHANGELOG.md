@@ -8,6 +8,8 @@ moves therefore get an entry of their own.
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-10-23
+
 ### Added
 
 - `carve.lint: true` reports Carve lint findings as build warnings with the
@@ -18,13 +20,11 @@ moves therefore get an entry of their own.
 ### Changed
 
 - carve-lang 0.1.11 is the minimum engine, because `carve.lint` needs the
-  linter it is the first to expose. markup-carve/jekyll-carve#34
-
-- The development engine pin moves from carve-rb v0.1.7 to v0.1.10, the
-  version a consumer now resolves from RubyGems. Two rendering changes come
-  with it: a quote-prefixed `+` needs a space after each `>`, so `>+` renders
-  as text, and an include of a file that is not valid UTF-8 is refused with an
+  linter it is the first to expose. Two rendering changes come with the newer
+  engine: a quote-prefixed `+` needs a space after each `>`, so `>+` renders as
+  text, and an include of a file that is not valid UTF-8 is refused with an
   `include-non-text` warning instead of being spliced.
+  markup-carve/jekyll-carve#33, markup-carve/jekyll-carve#34
 
 ## [0.1.3] - 2026-10-08
 
