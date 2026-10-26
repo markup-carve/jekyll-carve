@@ -20,10 +20,6 @@ bundle install
 
 Then enable the plugin in `_config.yml`:
 
-```yaml
-plugins:
-  - jekyll-carve
-```
 
 > [!NOTE]
 > The `carve-lang` gem ships a Rust native extension and is compiled at install
