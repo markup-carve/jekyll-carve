@@ -11,8 +11,7 @@ bundle add jekyll-carve
 ## Usage
 
 ```yaml
-plugins:
-  - jekyll-carve
+plugins: [jekyll-carve]
 ```
 
 ## Documentation
