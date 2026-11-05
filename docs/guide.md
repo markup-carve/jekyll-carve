@@ -215,6 +215,12 @@ names that file: `index.crv (parts/intro.crv:3:1): ...`. Include warnings such
 as `include-unresolved` are logged once, by the include pass, but count toward
 `strict`.
 
+A newer engine can report findings an older one did not, so a site that passes
+`strict` today can fail after a carve-lang upgrade. The release after 0.1.13
+reports a `---` thematic break as `thematic-break-spelling` (write `***`) and the
+glued alignment markers `|=<`, `|=~`, `|=>` as `deprecated-cell-alignment`
+(write `|={<}`, `|={~}`, `|={>}`). Both still render as before.
+
 `carve.lint` needs carve-lang 0.1.11 or later, the first engine that exposes the
 linter. That is why it is this gem's floor.
 
