@@ -13,6 +13,11 @@ the engine.
 
 Add both gems to your site's `Gemfile`:
 
+```ruby
+# Gemfile
+gem "jekyll-carve"
+gem "carve-lang" # the native Carve engine (a runtime dependency, listed for clarity)
+```
 
 ```sh
 bundle install
@@ -20,12 +25,17 @@ bundle install
 
 Then enable the plugin in `_config.yml`:
 
+```yaml
+plugins:
+  - jekyll-carve
+```
 
 > [!NOTE]
-> The `carve-lang` gem ships a Rust native extension and is compiled at install
-> time. It requires a Rust toolchain (`cargo`) and Ruby development headers.
-> See the carve-rb README for build notes (including the libclang/`stdarg.h`
-> workaround on some systems).
+> `carve-lang` ships precompiled gems for Linux (x86_64, aarch64, musl), macOS
+> (x86_64, arm64) and Windows (x64 UCRT). On any other platform RubyGems
+> installs the source gem, which compiles a Rust extension and needs a Rust
+> toolchain (`cargo`), libclang and Ruby development headers. See the carve-rb
+> README for build notes.
 
 ## Configuration
 
