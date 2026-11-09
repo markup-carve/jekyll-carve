@@ -34,6 +34,12 @@ jobs:
         run: |
           set -euo pipefail
           pinned="$(sed -n 's/^ *gem "carve-lang", "=\{0,1\} *\([0-9][0-9.]*\)".*/\1/p' Gemfile | head -1)"
+          # An interim carve-rb main pin has no RubyGems version to compare.
+          git_pin="$(sed -n 's|^ *gem "carve-lang", git: "https://github.com/markup-carve/carve-rb", ref: "\([0-9a-f]\{40\}\)".*|\1|p' Gemfile | head -1)"
+          if [ -z "${pinned}" ] && [ -n "${git_pin}" ]; then
+            echo "::notice::carve-lang is pinned to carve-rb main ${git_pin} until the next release"
+            exit 0
+          fi
           if [ -z "${pinned}" ]; then
             echo "::error::no exact carve-lang version found in Gemfile; the engine dependency is not pinned"
             exit 1

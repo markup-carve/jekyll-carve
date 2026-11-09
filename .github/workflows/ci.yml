@@ -20,8 +20,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # No Rust toolchain or libclang: the pinned carve-lang ships a precompiled
-      # gem for this platform on every Ruby in the matrix.
+      # The interim carve-rb git pin compiles the extension; a released
+      # carve-lang ships precompiled gems and needs neither step.
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install libclang (rb-sys bindgen)
+        run: sudo apt-get update && sudo apt-get install -y libclang-dev
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby }}

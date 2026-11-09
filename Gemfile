@@ -26,5 +26,6 @@ if carve_rb && !carve_rb.empty?
 
   gem "carve-lang", path: File.expand_path(carve_rb)
 else
-  gem "carve-lang", "0.1.13"
+  # Interim pin of carve-rb main; the 0.1.14 cut re-points it to the release.
+  gem "carve-lang", git: "https://github.com/markup-carve/carve-rb", ref: "03af44e91cf2c4146267fa5d53a2f3bd7bfec58c"
 end
