@@ -35,6 +35,9 @@ end
 
 gemfile = File.read("Gemfile")
 pinned = gemfile[/^\s*gem\s+["']#{ENGINE}["'],\s*["']=?\s*(\d+\.\d+\.\d+)["']/, 1]
+# Between releases the engine may be a carve-rb main revision, pinned by its full sha.
+git_pin = gemfile.match(/^\s*gem\s+["']#{ENGINE}["'],\s*git:\s*["'](https:\/\/github\.com\/markup-carve\/carve-rb)["'],\s*ref:\s*["']([0-9a-f]{40})["']/)
+pinned ||= git_pin && "carve-rb #{git_pin[2]}"
 if pinned.nil?
   refuse "Gemfile names no exact #{ENGINE} version, so this run measured an unstated engine"
 end
@@ -74,6 +77,11 @@ when "GEM"
   end
   unless resolved_version == pinned
     refuse "Gemfile pins #{ENGINE} #{pinned}, but this bundle resolved #{resolved_version}"
+  end
+when "GIT"
+  unless git_pin && owner[:remote] == git_pin[1] && owner[:revision] == git_pin[2]
+    refuse "#{ENGINE} was resolved from git #{owner[:remote]} at #{owner[:revision]}, " \
+           "not the pinned #{pinned}"
   end
 when "PATH"
   refuse "#{ENGINE} was resolved from the path #{owner[:remote]}, not the pinned " \
