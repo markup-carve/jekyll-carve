@@ -17,7 +17,7 @@ the loaded library disagree. CI runs it before the suite:
 
 ```sh
 bundle exec ruby script/verify_engine_pin.rb
-# carve-lang 0.1.13 from https://rubygems.org/ (Gemfile pins 0.1.13)
+# carve-lang 0.1.14 from https://rubygems.org/ (Gemfile pins 0.1.14)
 ```
 
 An installed copy of this gem resolves differently, through the range
