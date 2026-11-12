@@ -216,7 +216,7 @@ as `include-unresolved` are logged once, by the include pass, but count toward
 `strict`.
 
 A newer engine can report findings an older one did not, so a site that passes
-`strict` today can fail after a carve-lang upgrade. The release after 0.1.13
+`strict` today can fail after a carve-lang upgrade. carve-lang 0.1.14
 reports a `---` thematic break as `thematic-break-spelling` (write `***`) and the
 glued alignment markers `|=<`, `|=~`, `|=>` as `deprecated-cell-alignment`
 (write `|={<}`, `|={~}`, `|={>}`). Both still render as before.

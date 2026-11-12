@@ -8,6 +8,19 @@ moves therefore get an entry of their own.
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-11-12
+
+### Changed
+
+- Developed and tested against carve-lang 0.1.14; the gemspec floor stays at
+  0.1.11 (#40). Upgrading the engine changes published pages: braced cell
+  alignment (`|={>}`) renders header cells with alignment, and an erased `%%`
+  line no longer splits its paragraph.
+- With carve-lang 0.1.14, `carve.lint` reports a `---` break as
+  `thematic-break-spelling` (write `***`) and `|=<` `|=~` `|=>` as
+  `deprecated-cell-alignment` (write `|={<}` `|={~}` `|={>}`), so a
+  `carve.lint: strict` build can start failing after the upgrade (#40).
+
 ## [0.1.4] - 2026-10-23
 
 ### Added
