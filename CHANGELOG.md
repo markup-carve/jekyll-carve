@@ -8,7 +8,7 @@ moves therefore get an entry of their own.
 
 ## [Unreleased]
 
-## [0.1.5] - 2026-11-11
+## [0.1.5] - 2026-11-12
 
 ### Changed
 
