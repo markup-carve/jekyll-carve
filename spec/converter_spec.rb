@@ -339,4 +339,13 @@ RSpec.describe Jekyll::Carve::Converter do
       expect(converter.convert(raw)).to include(%(<div class="x">raw</div>))
     end
   end
+
+  describe "on a 0.1 engine" do
+    it "names the missing 0.2 engine instead of failing on a keyword" do
+      allow(::Carve).to receive(:respond_to?).and_call_original
+      allow(::Carve).to receive(:respond_to?).with(:call).and_return(false)
+      expect { described_class.new({}).convert("x\n") }
+        .to raise_error(ArgumentError, /needs the Carve 0\.2 carve-lang/)
+    end
+  end
 end

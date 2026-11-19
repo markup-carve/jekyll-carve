@@ -60,6 +60,7 @@ module Jekyll
       #
       # Returns the rendered HTML String.
       def convert(content)
+        require_carve_02!
         document = Rendering.current
         root = include_root
         include_page = !(root.nil? || document.nil? || document.path.to_s.empty?)
@@ -192,6 +193,16 @@ module Jekyll
       end
 
       private
+
+      # The gemspec range cannot tell the unreleased 0.2 binding from 0.1.x (both
+      # report 0.1.x), so the 0.2 API is checked by its `Carve.call` entry point.
+      def require_carve_02!
+        return if ::Carve.respond_to?(:call)
+
+        raise ArgumentError,
+              "jekyll-carve needs the Carve 0.2 carve-lang (carve-rb next2); " \
+              "the installed carve-lang #{::Carve::VERSION} is a 0.1 engine"
+      end
 
       # Extensions cannot be registered in the Carve 0.2 engine yet
       # (markup-carve/carve-rs#4329); nil keeps the engine from refusing a
