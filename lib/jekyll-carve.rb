@@ -204,8 +204,8 @@ module Jekyll
               "the installed carve-lang #{::Carve::VERSION} is a 0.1 engine"
       end
 
-      # Extensions cannot be registered in the Carve 0.2 engine yet
-      # (markup-carve/carve-rs#4329); nil keeps the engine from refusing a
+      # The old 0.1 extension names need 0.2 Ruby host callbacks
+      # (markup-carve/carve-rb#263); nil keeps the engine from refusing a
       # site that configured none.
       def engine_extensions
         names = carve_extensions
@@ -218,6 +218,10 @@ module Jekyll
                                  extensions: engine_extensions,
                                  symbols: carve_symbols,
                                  raw_html: raw_html?)
+        end
+
+        unless ::Carve.respond_to?(:to_html_with_includes)
+          raise ArgumentError, "carve.includes: the installed carve-lang is too old; upgrade it to 0.1.4 or later"
         end
 
         begin
