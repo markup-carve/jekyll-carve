@@ -68,12 +68,13 @@ RSpec.describe Jekyll::Carve::Converter do
       end
 
       it "still renders ordinary content" do
-        skip "extension registration not available yet in the Carve 0.2 engine: markup-carve/carve-rs#4329"
+        skip "0.1 extension behavior awaits the Carve 0.2 Ruby host callbacks: markup-carve/carve-rb#263"
         expect(converter.convert("# Title")).to include("<h1")
       end
 
       it "refuses the extension until the engine can register it" do
-        expect { converter.convert("# Title") }.to raise_error(::Carve::ExtensionUnavailable, /not available yet/)
+        # C2-X-039 accepts only names in the 0.2 standard registry.
+        expect { converter.convert("# Title") }.to raise_error(::Carve::EngineError, /not a standard extension/)
       end
     end
 

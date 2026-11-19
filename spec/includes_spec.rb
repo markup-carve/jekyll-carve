@@ -83,7 +83,6 @@ RSpec.describe "Carve includes" do
       end
 
       it "names the upgrade instead of raising NoMethodError" do
-        skip "0.1 engine guard: every Carve 0.2 carve-lang has to_html_with_includes"
         expect { render("index.crv", "{{ sub/frag.crv }}\n") }
           .to raise_error(ArgumentError, /carve\.includes: .*upgrade it to 0\.1\.4 or later/)
       end
@@ -194,7 +193,7 @@ RSpec.describe "Carve includes" do
     end
 
     it "carries the extension set into an included child" do
-      skip "extension registration not available yet in the Carve 0.2 engine: markup-carve/carve-rs#4329"
+      skip "0.1 extension behavior awaits the Carve 0.2 Ruby host callbacks: markup-carve/carve-rb#263"
       write("site/sub/frag.crv", "# Child\n")
       config["carve"]["extensions"] = ["heading_permalinks"]
       expect(render("index.crv", "{{ sub/frag.crv }}\n")).to include("permalink")

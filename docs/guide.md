@@ -52,10 +52,9 @@ hyphenated/underscored forms, passed straight through to the engine). When the
 key is absent, no extensions are enabled. The recognized extensions are listed
 in `Carve::EXTENSIONS`; an unknown name raises `ArgumentError` at build time.
 
-> The Carve 0.2 engine cannot register extensions yet
-> ([carve-rs#4329](https://github.com/markup-carve/carve-rs/issues/4329)), so on
-> this branch a non-empty `carve.extensions` stops the build with
-> `Carve::ExtensionUnavailable` until it lands.
+> The old 0.1 extension names still used by Jekyll sites need Ruby host
+> callbacks or transforms ([carve-rb#263](https://github.com/markup-carve/carve-rb/issues/263)).
+> Those names are refused until the binding exposes them.
 
 ### `carve.raw_html`
 
