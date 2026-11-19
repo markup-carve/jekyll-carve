@@ -39,6 +39,10 @@ jobs:
           sudo apt-get update && sudo apt-get install -y libclang-dev
 
       - uses: ruby/setup-ruby@v1
+        env:
+          # The prebuilt Ruby 3.2 headers reach `bool` without stdbool.h under
+          # bindgen; including it is harmless on the other Rubies.
+          BINDGEN_EXTRA_CLANG_ARGS: -include stdbool.h
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
