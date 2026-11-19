@@ -78,7 +78,7 @@ RSpec.describe "carve.lint" do
 
     it "does not log an include warning twice" do
       render("index.crv", "---\n---\n", "{{ missing.crv }}\n")
-      expect(warnings.grep(/include-unresolved/).size).to eq(1)
+      expect(warnings.grep(/include-not-found/).size).to eq(1) # C2-N-061
     end
   end
 

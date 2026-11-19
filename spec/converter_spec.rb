@@ -68,7 +68,12 @@ RSpec.describe Jekyll::Carve::Converter do
       end
 
       it "still renders ordinary content" do
+        skip "extension registration not available yet in the Carve 0.2 engine: markup-carve/carve-rs#4329"
         expect(converter.convert("# Title")).to include("<h1")
+      end
+
+      it "refuses the extension until the engine can register it" do
+        expect { converter.convert("# Title") }.to raise_error(::Carve::ExtensionUnavailable, /not available yet/)
       end
     end
 
@@ -318,6 +323,29 @@ RSpec.describe Jekyll::Carve::Converter do
         expect { converter_for([42]).carve_symbols }
           .to raise_error(ArgumentError, /expected a mapping or a path/)
       end
+    end
+  end
+
+  describe "raw HTML" do
+    let(:raw) { "```=html\n<div class=\"x\">raw</div>\n```\n" }
+
+    # U-076, C2-H-050: the Carve 0.2 default escapes raw HTML.
+    it "is escaped by default" do
+      expect(described_class.new({}).convert(raw)).not_to include(%(<div class="x">raw</div>))
+    end
+
+    it "passes through with carve.raw_html" do
+      converter = described_class.new({ "carve" => { "raw_html" => true } })
+      expect(converter.convert(raw)).to include(%(<div class="x">raw</div>))
+    end
+  end
+
+  describe "on a 0.1 engine" do
+    it "names the missing 0.2 engine instead of failing on a keyword" do
+      allow(::Carve).to receive(:respond_to?).and_call_original
+      allow(::Carve).to receive(:respond_to?).with(:call).and_return(false)
+      expect { described_class.new({}).convert("x\n") }
+        .to raise_error(ArgumentError, /needs the Carve 0\.2 carve-lang/)
     end
   end
 end

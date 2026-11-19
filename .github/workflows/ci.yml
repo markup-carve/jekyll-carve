@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, next2]
   pull_request:
 
 # Jobs carry an explicit timeout-minutes: without one GitHub applies a
@@ -20,9 +20,29 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # No Rust toolchain or libclang: the pinned carve-lang ships a precompiled
-      # gem for this platform on every Ruby in the matrix.
+      # On next2 carve-lang is a git pin, so bundler compiles its Rust extension.
+      # rb-sys bindgen needs a libclang with its resource headers (stdbool.h);
+      # without them Ruby 3.2 headers fail on `bool`. Same probe as carve-rb.
+      - name: Find a complete libclang for the native extension
+        run: |
+          for lib in $(find /usr/lib -maxdepth 4 \
+                         \( -name 'libclang.so' -o -name 'libclang.so.*' \) \
+                         2>/dev/null | sort -V -r); do
+            dir="$(dirname "$lib")"
+            headers="$(find "$dir/clang" -maxdepth 3 -name stddef.h 2>/dev/null | sort -V | tail -1)"
+            if [ -n "$headers" ]; then
+              echo "libclang on the image: $lib (resource headers at $(dirname "$headers"))"
+              echo "LIBCLANG_PATH=$dir" >> "$GITHUB_ENV"
+              exit 0
+            fi
+          done
+          sudo apt-get update && sudo apt-get install -y libclang-dev
+
       - uses: ruby/setup-ruby@v1
+        env:
+          # The prebuilt Ruby 3.2 headers reach `bool` without stdbool.h under
+          # bindgen; including it is harmless on the other Rubies.
+          BINDGEN_EXTRA_CLANG_ARGS: -include stdbool.h
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
