@@ -25,8 +25,9 @@ RSpec.describe "the engine release after carve-lang 0.1.13" do
   describe "the glued 0.1.13 alignment markers" do
     let(:source) { "|=< A |=> B |\n| a | b |\n" }
 
+    # U-056: in 0.2 the glued prefix is cell text, not an alignment.
     it "still render as alignment" do
-      expect(render(source)).to include(%(style="text-align: right;">B</th>))
+      expect(render(source)).to include(%(<th scope="col">&gt; B</th>))
     end
   end
 

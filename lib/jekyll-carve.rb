@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
+require "pathname"
 
 require "jekyll"
 require "carve"
@@ -184,27 +185,37 @@ module Jekyll
         remove_instance_variable(:@symbols) if defined?(@symbols)
       end
 
+      # `carve.raw_html: true` emits `=html` blocks and spans verbatim. Carve
+      # 0.2 escapes them by default.
+      def raw_html?
+        carve_config["raw_html"] == true
+      end
+
       private
+
+      # Extensions cannot be registered in the Carve 0.2 engine yet
+      # (markup-carve/carve-rs#4329); nil keeps the engine from refusing a
+      # site that configured none.
+      def engine_extensions
+        names = carve_extensions
+        names.empty? ? nil : names
+      end
 
       def render(content, document, root)
         if root.nil?
           return ::Carve.to_html(content,
-                                 extensions: carve_extensions,
-                                 symbols: carve_symbols)
-        end
-        # carve-lang added this entry point in 0.1.4; the floor stays lower for sites without includes.
-        unless ::Carve.respond_to?(:to_html_with_includes)
-          raise ArgumentError,
-                "carve.includes: the installed carve-lang (#{::Carve::VERSION}) has no " \
-                "to_html_with_includes; upgrade it to 0.1.4 or later, or set carve.includes: false"
+                                 extensions: engine_extensions,
+                                 symbols: carve_symbols,
+                                 raw_html: raw_html?)
         end
 
         begin
           result = ::Carve.to_html_with_includes(content,
                                                  root: root,
                                                  source_path: document.path,
-                                                 extensions: carve_extensions,
-                                                 symbols: carve_symbols)
+                                                 extensions: engine_extensions,
+                                                 symbols: carve_symbols,
+                                                 raw_html: raw_html?)
         rescue ArgumentError => e
           # A relative root, or a page outside it. Both are decided by the
           # engine; what this adds is the key and the page to look at.
@@ -224,21 +235,32 @@ module Jekyll
       def lint(content, document, root)
         page = document && (document.relative_path || document.path).to_s
         page = "(no page)" if page.nil? || page.empty?
-        options = { extensions: carve_extensions }
+        options = { extensions: engine_extensions }
         options.update(root: root, source_path: document.path) if root
         findings = ::Carve.lint(content, **options)
         offset = front_matter_lines(document)
+        own = root && Pathname.new(document.path.to_s).relative_path_from(Pathname.new(root)).to_s
         findings.each do |finding|
-          next if root && finding[:rule].start_with?("include-")
+          next if root && finding[:code].start_with?("include-")
 
-          where = if finding[:file]
-                    "#{page} (#{finding[:file]}:#{finding[:line]}:#{finding[:column]})"
+          origin = finding[:file]
+          origin = nil if origin == own
+          text = origin ? File.read(File.join(root, origin), encoding: "utf-8") : content
+          line, column = position(text, finding.dig(:range, :startOffset).to_i)
+          where = if origin
+                    "#{page} (#{origin}:#{line}:#{column})"
                   else
-                    "#{page}:#{finding[:line] + offset}:#{finding[:column]}"
+                    "#{page}:#{line + offset}:#{column}"
                   end
-          Jekyll.logger.warn "Carve lint:", "#{where}: #{finding[:rule]}: #{finding[:message]}"
+          Jekyll.logger.warn "Carve lint:", "#{where}: #{finding[:code]}: #{finding[:message]}"
         end
         @lint_findings = lint_findings + findings.size if lint_mode == :strict
+      end
+
+      # A 1-based line and character column for a UTF-8 byte offset in text.
+      def position(text, offset)
+        before = text.b[0, [offset, 0].max].force_encoding("utf-8").scrub("")
+        [before.count("\n") + 1, before.length - (before.rindex("\n") || -1)]
       end
 
       # Lines of YAML front matter above the body, so a finding names the line
@@ -252,12 +274,17 @@ module Jekyll
       end
 
       # Surface what expansion degraded, and record what it read.
+      #
+      # Carve 0.2 names the cause in the code (C2-N-061), so a missing file
+      # and a containment refusal are told apart by the warning itself.
       def report_includes(result, document, root)
         page = document.relative_path || document.path
         Array(result[:warnings]).each do |warning|
+          next unless warning[:code].to_s.start_with?("include-") && warning[:channel] == "parse"
+
           origin = warning[:file]
           where = origin && origin != page ? "#{page} (#{origin})" : page
-          Jekyll.logger.warn "Carve:", "#{where}: #{warning[:rule]}: #{warning[:message]}"
+          Jekyll.logger.warn "Carve:", "#{where}: #{warning[:code]}: #{warning[:message]}"
         end
         suppressed = result[:suppressedWarnings].to_i
         if suppressed.positive?
@@ -265,16 +292,9 @@ module Jekyll
                              "#{page}: #{suppressed} further include warnings suppressed"
         end
         Array(result[:dependencies]).each do |dependency|
-          # A containment refusal and a missing file are the same warning, so a
-          # page cannot probe the filesystem (spec I7). The class that was
-          # collapsed is here, for the build's own log.
-          if dependency[:denial]
-            Jekyll.logger.debug "Carve:",
-                                "#{page}: include #{dependency[:path]}: #{dependency[:denial]}"
-            next
-          end
+          next unless dependency[:read] && dependency[:file]
 
-          register_dependency(document, File.join(root, dependency[:path].to_s))
+          register_dependency(document, File.join(root, dependency[:file].to_s))
         end
       end
 

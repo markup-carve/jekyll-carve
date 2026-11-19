@@ -9,15 +9,14 @@ bundle exec rspec   # run the converter unit tests
 
 ### Which engine you are testing against
 
-`Gemfile` pins `carve-lang` to one exact released version from RubyGems, so a
-development run measures a version a consumer can install rather than whatever
-the gemspec range resolves that day, and
+On `next2`, `Gemfile` pins `carve-lang` to a carve-rb `next2` commit (the
+unreleased Carve 0.2 binding, compiled by Bundler), and
 `script/verify_engine_pin.rb` refuses when the Gemfile, the resolved bundle and
 the loaded library disagree. CI runs it before the suite:
 
 ```sh
 bundle exec ruby script/verify_engine_pin.rb
-# carve-lang 0.1.14 from https://rubygems.org/ (Gemfile pins 0.1.14)
+# carve-lang 0.1.14 from https://github.com/markup-carve/carve-rb (Gemfile pins carve-rb 5fa8f1dd346e400ed6c2472692bccfeb62802179)
 ```
 
 An installed copy of this gem resolves differently, through the range
