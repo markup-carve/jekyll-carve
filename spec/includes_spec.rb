@@ -193,7 +193,6 @@ RSpec.describe "Carve includes" do
     end
 
     it "carries the extension set into an included child" do
-      skip "the 0.2 engine has no heading permalinks yet: markup-carve/carve-rs#4476"
       write("site/sub/frag.crv", "# Child\n")
       config["carve"]["extensions"] = ["heading_permalinks"]
       expect(render("index.crv", "{{ sub/frag.crv }}\n")).to include("permalink")

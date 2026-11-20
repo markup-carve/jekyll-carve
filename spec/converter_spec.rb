@@ -92,11 +92,23 @@ RSpec.describe Jekyll::Carve::Converter do
       end
     end
 
-    context "with an extension the 0.2 engine does not have yet" do
-      let(:config) { { "carve" => { "extensions" => ["heading_permalinks"] } } }
+    {
+      "heading_permalinks" => ["# Hi\n", 'class="permalink"'],
+      "heading-numbers" => ["# Hi\n", '<span class="section-number">1</span>'],
+      "heading_level_shift" => ["# Hi\n", "<h2>Hi</h2>"],
+      "table-of-contents" => ["# Hi\n", '<nav class="toc"'],
+      "toc" => ["# Hi\n", '<nav class="toc"'],
+      "external_links" => ["[x](https://example.org)\n", 'target="_blank"'],
+      "autolink" => ["See https://example.org\n", '<a href="https://example.org">'],
+      "heading-reference" => ["# Hi\n", "<h1>Hi</h1>"],
+      "link-policy" => ["[x](https://example.org)\n", '<a href="https://example.org">'],
+    }.each do |name, (source, visible)|
+      context "with the navigation extension #{name}" do
+        let(:config) { { "carve" => { "extensions" => [name] } } }
 
-      it "refuses it and names the engine ticket" do
-        expect { converter.convert("= Title") }.to raise_error(ArgumentError, /carve-rs#4476/)
+        it "renders it through the engine" do
+          expect(converter.convert(source)).to include(visible)
+        end
       end
     end
 
