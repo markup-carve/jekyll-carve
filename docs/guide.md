@@ -56,11 +56,14 @@ A 0.1 name is read as its 0.2 counterpart, in either spelling (`math_block` or
 `list-table`, `math-block`, `fenced-render` (`carve.fencedRender.mermaid`),
 `fenced-render-<word>` (graphviz also claims `dot`, plantuml also `puml`), `semantic-span`, `smart-quotes`, `color-swatch`,
 `wikilinks` (`carve.wiki`), `citations` (`carve.references`), `glossary`,
-`index`, `img-fence` and `tab-normalize`. The 0.2 engine has no
+`index`, `img-fence`, `tab-normalize`, and the navigation extensions
 `heading-permalinks`, `heading-numbers`, `heading-level-shift`,
-`heading-reference`, `table-of-contents`, `toc`, `external-links` or `autolink`
-yet ([carve-rs#4476](https://github.com/markup-carve/carve-rs/issues/4476));
-naming one is an `ArgumentError`. In an included file, an extension claims its
+`heading-reference`, `table-of-contents` (`carve.toc`, a table at the top of
+the page), `toc` (`carve.tocPlacement`, a table where a `::: toc` block
+stands), `external-links`, `autolink` and `link-policy`.
+
+The 0.2 Ruby binding enables an extension by name only, so `carve.extensions`
+takes names, not options. In an included file, an extension claims its
 construct only when the including page uses it too
 ([carve-rs#4481](https://github.com/markup-carve/carve-rs/issues/4481)).
 

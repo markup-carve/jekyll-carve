@@ -6,10 +6,10 @@ plugins:
 
 # Carve engine options consumed by Jekyll::Carve::Converter.
 carve:
-  # Carve 0.2 standard extensions; heading permalinks wait on
-  # markup-carve/carve-rs#4476.
+  # Carve 0.2 standard extensions.
   extensions:
     - carve.details
+    - carve.headingPermalinks
   # The `:name:` map. An inline mapping and a JSON file, merged left to right.
   # Read only from here and from files named here - a symbol value is emitted
   # RAW, so it must never come from anything a visitor can influence.
