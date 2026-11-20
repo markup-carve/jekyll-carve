@@ -204,18 +204,76 @@ module Jekyll
               "the installed carve-lang #{::Carve::VERSION} is a 0.1 engine"
       end
 
-      # The old 0.1 extension names need 0.2 Ruby host callbacks
-      # (markup-carve/carve-rb#263); nil keeps the engine from refusing a
-      # site that configured none.
+      # The Carve 0.2 standard extensions each 0.1 extension name stands for. A
+      # name missing here and not starting with `carve.` reaches the engine as
+      # written.
+      LEGACY_EXTENSIONS = {
+        "citations" => ["carve.references"],
+        "code-callouts" => ["carve.codeCallouts"],
+        "code-group" => ["carve.codeGroup"],
+        "color-swatch" => ["carve.colorSwatch"],
+        "details" => ["carve.details"],
+        "fenced-render" => ["carve.fencedRender.mermaid"],
+        "fenced-render-abc" => ["carve.fencedRender.abc"],
+        "fenced-render-chart" => ["carve.fencedRender.chart"],
+        "fenced-render-d2" => ["carve.fencedRender.d2"],
+        "fenced-render-graphviz" => ["carve.fencedRender.graphviz"],
+        "fenced-render-plantuml" => ["carve.fencedRender.plantuml"],
+        "fenced-render-vega-lite" => ["carve.fencedRender.vega-lite"],
+        "fenced-render-wavedrom" => ["carve.fencedRender.wavedrom"],
+        "glossary" => ["carve.glossary"],
+        "img-fence" => ["carve.imgFence.img", "carve.imgFence.image"],
+        "index" => ["carve.index"],
+        "list-table" => ["carve.listTable"],
+        "math-block" => ["carve.mathBlock"],
+        "semantic-span" => ["carve.semanticSpan"],
+        "smart-quotes" => ["carve.smartQuotes"],
+        "spoiler" => ["carve.spoiler", "carve.spoilerBlock"],
+        "tab-normalize" => ["carve.tabNormalize"],
+        "tabs" => ["carve.tabs"],
+        "wikilinks" => ["carve.wiki"],
+      }.freeze
+
+      # 0.1 extensions the 0.2 engine does not have yet.
+      PENDING_EXTENSIONS = %w[
+        autolink external-links heading-level-shift heading-numbers
+        heading-permalinks heading-reference table-of-contents toc
+      ].freeze
+
+      # Standard extensions without a standard renderer in the engine.
+      NO_STANDARD_RENDERER = %w[carve.cite].freeze
+
+      # The 0.2 standard extension names for `carve.extensions`, or nil when the
+      # site configured none. 0.1 names are accepted in either spelling.
       def engine_extensions
-        names = carve_extensions
+        names = carve_extensions.flat_map do |entry|
+          name = entry.to_s
+          next [name] if name.start_with?("carve.")
+
+          key = name.tr("_", "-")
+          if PENDING_EXTENSIONS.include?(key)
+            raise ArgumentError,
+                  "carve.extensions: #{name} is not a standard extension of the 0.2 engine yet " \
+                  "(markup-carve/carve-rs#4476)"
+          end
+          LEGACY_EXTENSIONS.fetch(key, [name])
+        end.uniq
         names.empty? ? nil : names
       end
 
+      # The standard renderer for each enabled extension that has one.
+      def engine_renderers(names)
+        return nil if names.nil?
+
+        names.reject { |name| NO_STANDARD_RENDERER.include?(name) }.to_h { |name| [name, "standard"] }
+      end
+
       def render(content, document, root)
+        extensions = engine_extensions
         if root.nil?
           return ::Carve.to_html(content,
-                                 extensions: engine_extensions,
+                                 extensions: extensions,
+                                 renderers: engine_renderers(extensions),
                                  symbols: carve_symbols,
                                  raw_html: raw_html?)
         end
@@ -228,7 +286,8 @@ module Jekyll
           result = ::Carve.to_html_with_includes(content,
                                                  root: root,
                                                  source_path: document.path,
-                                                 extensions: engine_extensions,
+                                                 extensions: extensions,
+                                                 renderers: engine_renderers(extensions),
                                                  symbols: carve_symbols,
                                                  raw_html: raw_html?)
         rescue ArgumentError => e
@@ -250,7 +309,8 @@ module Jekyll
       def lint(content, document, root)
         page = document && (document.relative_path || document.path).to_s
         page = "(no page)" if page.nil? || page.empty?
-        options = { extensions: engine_extensions }
+        # 0.2 lint reads no extensions (C2-W-109).
+        options = {}
         options.update(root: root, source_path: document.path) if root
         findings = ::Carve.lint(content, **options)
         offset = front_matter_lines(document)

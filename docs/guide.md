@@ -42,19 +42,27 @@ Carve engine options are read from `_config.yml` under the `carve` key:
 ```yaml
 carve:
   extensions:
-    - heading_permalinks
-    - math_block
-    - autolink
+    - carve.details
+    - carve.mathBlock
+    - carve.fencedRender.mermaid
 ```
 
-`carve.extensions` is an array of opt-in Carve extension names (Strings or
-hyphenated/underscored forms, passed straight through to the engine). When the
-key is absent, no extensions are enabled. The recognized extensions are listed
-in `Carve::EXTENSIONS`; an unknown name raises `ArgumentError` at build time.
+`carve.extensions` lists Carve 0.2 standard extensions, each rendered with its
+standard renderer. When the key is absent, no extensions are enabled. An unknown
+name is an `ArgumentError` at build time.
 
-> The old 0.1 extension names still used by Jekyll sites need Ruby host
-> callbacks or transforms ([carve-rb#263](https://github.com/markup-carve/carve-rb/issues/263)).
-> Those names are refused until the binding exposes them.
+A 0.1 name is read as its 0.2 counterpart, in either spelling (`math_block` or
+`math-block`): `details`, `spoiler`, `tabs`, `code-group`, `code-callouts`,
+`list-table`, `math-block`, `fenced-render` (`carve.fencedRender.mermaid`),
+`fenced-render-<word>`, `semantic-span`, `smart-quotes`, `color-swatch`,
+`wikilinks` (`carve.wiki`), `citations` (`carve.references`), `glossary`,
+`index`, `img-fence` and `tab-normalize`. The 0.2 engine has no
+`heading-permalinks`, `heading-numbers`, `heading-level-shift`,
+`heading-reference`, `table-of-contents`, `toc`, `external-links` or `autolink`
+yet ([carve-rs#4476](https://github.com/markup-carve/carve-rs/issues/4476));
+naming one is an `ArgumentError`. In an included file, an extension claims its
+construct only when the including page uses it too
+([carve-rs#4481](https://github.com/markup-carve/carve-rs/issues/4481)).
 
 ### `carve.raw_html`
 
@@ -214,8 +222,8 @@ carve:
 Every page is linted and reported first, then `jekyll build` stops with an
 error before writing the site.
 
-The linter reads the same `carve.extensions` the pages render with. With
-`carve.includes` on it also lints each included Carve file, and a finding there
+The 0.2 linter reads no extensions (C2-W-109), so `carve.extensions` does not
+change what it reports. With `carve.includes` on it also lints each included Carve file, and a finding there
 names that file: `index.crv (parts/intro.crv:3:1): ...`. Include warnings such
 as `include-not-found` are logged once, by the include pass, but count toward
 `strict`. Without `carve.includes`, each directive is a finding,
