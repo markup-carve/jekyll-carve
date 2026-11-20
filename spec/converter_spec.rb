@@ -68,13 +68,27 @@ RSpec.describe Jekyll::Carve::Converter do
       end
 
       it "still renders ordinary content" do
-        skip "0.1 extension behavior awaits the Carve 0.2 Ruby host callbacks: markup-carve/carve-rb#263"
-        expect(converter.convert("# Title")).to include("<h1")
+        expect(converter.convert("= Title")).to include("<h1")
       end
 
-      it "refuses the extension until the engine can register it" do
-        # C2-X-039 accepts only names in the 0.2 standard registry.
-        expect { converter.convert("# Title") }.to raise_error(::Carve::EngineError, /not a standard extension/)
+      it "renders the 0.1 name as its 0.2 standard extension" do
+        expect(converter.convert("``` math\nx^2\n```\n")).to include('class="math display"')
+      end
+    end
+
+    context "with a 0.2 standard extension name" do
+      let(:config) { { "carve" => { "extensions" => ["carve.details"] } } }
+
+      it "renders it with its standard renderer" do
+        expect(converter.convert("::: details\nBody\n:::\n")).to include("<details>")
+      end
+    end
+
+    context "with an extension the 0.2 engine does not have yet" do
+      let(:config) { { "carve" => { "extensions" => ["heading_permalinks"] } } }
+
+      it "refuses it and names the engine ticket" do
+        expect { converter.convert("= Title") }.to raise_error(ArgumentError, /carve-rs#4476/)
       end
     end
 
