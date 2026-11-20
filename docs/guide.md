@@ -33,7 +33,7 @@ plugins:
 > [!NOTE]
 > On `next2`, `carve-lang` is the unreleased Carve 0.2 binding, pinned in
 > `Gemfile` to a carve-rb `next2` commit. Bundler compiles its Rust extension,
-> which needs a Rust toolchain (`cargo`), libclang and Ruby development headers.
+> which needs Rust 1.88 or newer (`cargo`), libclang and Ruby development headers.
 
 ## Configuration
 
