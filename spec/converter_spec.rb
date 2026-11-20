@@ -68,7 +68,56 @@ RSpec.describe Jekyll::Carve::Converter do
       end
 
       it "still renders ordinary content" do
-        expect(converter.convert("# Title")).to include("<h1")
+        expect(converter.convert("= Title")).to include("<h1")
+      end
+
+      it "renders the 0.1 name as its 0.2 standard extension" do
+        expect(converter.convert("``` math\nx^2\n```\n")).to include('class="math display"')
+      end
+    end
+
+    context "with a 0.2 standard extension name" do
+      let(:config) { { "carve" => { "extensions" => ["carve.details"] } } }
+
+      it "renders it with its standard renderer" do
+        expect(converter.convert("::: details\nBody\n:::\n")).to include("<details>")
+      end
+    end
+
+    context "with the 0.1 graphviz preset name" do
+      let(:config) { { "carve" => { "extensions" => ["fenced-render-graphviz"] } } }
+
+      it "claims the dot fence as 0.1 did" do
+        expect(converter.convert("``` dot\ndigraph{a->b}\n```\n")).to include('<pre class="graphviz"')
+      end
+    end
+
+    {
+      "heading_permalinks" => ["# Hi\n", 'class="permalink"'],
+      "heading-numbers" => ["# Hi\n", '<span class="section-number">1</span>'],
+      "heading_level_shift" => ["# Hi\n", "<h2>Hi</h2>"],
+      "table-of-contents" => ["# Hi\n", '<nav class="toc"'],
+      "external_links" => ["[x](https://example.org)\n", 'target="_blank"'],
+      "autolink" => ["See https://example.org\n", '<a href="https://example.org">'],
+      "heading-reference" => ["# Hi\n", "<h1>Hi</h1>"],
+      "link-policy" => ["[x](https://example.org)\n", '<a href="https://example.org">'],
+    }.each do |name, (source, visible)|
+      context "with the navigation extension #{name}" do
+        let(:config) { { "carve" => { "extensions" => [name] } } }
+
+        it "renders it through the engine" do
+          expect(converter.convert(source)).to include(visible)
+        end
+      end
+    end
+
+    context "with the 0.1 toc extension" do
+      let(:config) { { "carve" => { "extensions" => ["toc"] } } }
+
+      it "places the table where the toc block stands, as 0.1 did" do
+        html = converter.convert("# A\n\n::: toc\n:::\n\n## B\n")
+        expect(html).to match(%r{<h1>A</h1>\s*<nav class="toc"})
+        expect(html).not_to start_with("<nav")
       end
     end
 
@@ -318,6 +367,29 @@ RSpec.describe Jekyll::Carve::Converter do
         expect { converter_for([42]).carve_symbols }
           .to raise_error(ArgumentError, /expected a mapping or a path/)
       end
+    end
+  end
+
+  describe "raw HTML" do
+    let(:raw) { "```=html\n<div class=\"x\">raw</div>\n```\n" }
+
+    # U-076, C2-H-050: the Carve 0.2 default escapes raw HTML.
+    it "is escaped by default" do
+      expect(described_class.new({}).convert(raw)).not_to include(%(<div class="x">raw</div>))
+    end
+
+    it "passes through with carve.raw_html" do
+      converter = described_class.new({ "carve" => { "raw_html" => true } })
+      expect(converter.convert(raw)).to include(%(<div class="x">raw</div>))
+    end
+  end
+
+  describe "on a 0.1 engine" do
+    it "names the missing 0.2 engine instead of failing on a keyword" do
+      allow(::Carve).to receive(:respond_to?).and_call_original
+      allow(::Carve).to receive(:respond_to?).with(:call).and_return(false)
+      expect { described_class.new({}).convert("x\n") }
+        .to raise_error(ArgumentError, /needs the Carve 0\.2 carve-lang/)
     end
   end
 end

@@ -61,7 +61,9 @@ RSpec.describe "engine rulings a published page depends on" do
   end
 
   describe "explicit table body counts" do
-    let(:source) { "{header-rows=1 body-rows=1,1}\n| H | G |\n| a | b |\n| c | d |\n" }
+    # U-058, U-271: 0.2 has no header-rows on a pipe table; the head is the
+    # leading row of header cells (C2-B-178), and body-rows splits the rest.
+    let(:source) { "{body-rows=1,1}\n|= H |= G |\n| a | b |\n| c | d |\n" }
 
     it "does not leak the metadata into the rendered table as an attribute" do
       expect(render(source)).not_to include("body-rows="),

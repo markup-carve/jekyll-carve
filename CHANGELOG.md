@@ -8,6 +8,20 @@ moves therefore get an entry of their own.
 
 ## [Unreleased]
 
+### Changed
+
+- Port to Carve 0.2: pages render and lint through the carve-rb `next2` Carve
+  0.2 binding, pinned by commit in `Gemfile`. HTML follows 0.2 (see the spec's
+  `UPGRADING.md`).
+- Raw HTML is escaped by default; the new `carve.raw_html: true` emits it
+  verbatim.
+- A non-empty `carve.extensions` is refused until the engine can register
+  extensions (markup-carve/carve-rs#4329).
+- Include warnings name the cause (`include-not-found`, `include-outside-root`,
+  ...) instead of one `include-unresolved`, and the 0.1 denial line at
+  `--verbose` is gone. Without `carve.includes`, lint reports each directive as
+  `include-no-resolver`.
+
 ## [0.1.5] - 2026-11-12
 
 ### Changed

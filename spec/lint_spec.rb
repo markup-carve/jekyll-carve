@@ -62,6 +62,11 @@ RSpec.describe "carve.lint" do
     expect { converter.convert("x\n") }.to raise_error(ArgumentError)
   end
 
+  it "lints a page whose site enables an extension" do
+    carve["extensions"] = ["details"]
+    expect { converter.convert("::: details\nBody\n:::\n") }.not_to raise_error
+  end
+
   it "refuses an unknown setting" do
     carve["lint"] = "loud"
     expect { converter.convert("x\n") }.to raise_error(ArgumentError, /carve.lint/)
@@ -78,7 +83,7 @@ RSpec.describe "carve.lint" do
 
     it "does not log an include warning twice" do
       render("index.crv", "---\n---\n", "{{ missing.crv }}\n")
-      expect(warnings.grep(/include-unresolved/).size).to eq(1)
+      expect(warnings.grep(/include-not-found/).size).to eq(1) # C2-N-061
     end
   end
 

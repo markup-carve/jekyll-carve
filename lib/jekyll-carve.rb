@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
+require "pathname"
 
 require "jekyll"
 require "carve"
@@ -59,6 +60,7 @@ module Jekyll
       #
       # Returns the rendered HTML String.
       def convert(content)
+        require_carve_02!
         document = Rendering.current
         root = include_root
         include_page = !(root.nil? || document.nil? || document.path.to_s.empty?)
@@ -184,27 +186,107 @@ module Jekyll
         remove_instance_variable(:@symbols) if defined?(@symbols)
       end
 
+      # `carve.raw_html: true` emits `=html` blocks and spans verbatim. Carve
+      # 0.2 escapes them by default.
+      def raw_html?
+        carve_config["raw_html"] == true
+      end
+
       private
 
+      # The gemspec range cannot tell the unreleased 0.2 binding from 0.1.x (both
+      # report 0.1.x), so the 0.2 API is checked by its `Carve.call` entry point.
+      def require_carve_02!
+        return if ::Carve.respond_to?(:call)
+
+        raise ArgumentError,
+              "jekyll-carve needs the Carve 0.2 carve-lang (carve-rb next2); " \
+              "the installed carve-lang #{::Carve::VERSION} is a 0.1 engine"
+      end
+
+      # The Carve 0.2 standard extensions each 0.1 extension name stands for. A
+      # name missing here and not starting with `carve.` reaches the engine as
+      # written.
+      LEGACY_EXTENSIONS = {
+        "autolink" => ["carve.autolink"],
+        "citations" => ["carve.references"],
+        "code-callouts" => ["carve.codeCallouts"],
+        "code-group" => ["carve.codeGroup"],
+        "color-swatch" => ["carve.colorSwatch"],
+        "details" => ["carve.details"],
+        "external-links" => ["carve.externalLinks"],
+        "fenced-render" => ["carve.fencedRender.mermaid"],
+        "fenced-render-abc" => ["carve.fencedRender.abc"],
+        "fenced-render-chart" => ["carve.fencedRender.chart"],
+        "fenced-render-d2" => ["carve.fencedRender.d2"],
+        "fenced-render-graphviz" => ["carve.fencedRender.graphviz", "carve.fencedRender.dot"],
+        "fenced-render-plantuml" => ["carve.fencedRender.plantuml", "carve.fencedRender.puml"],
+        "fenced-render-vega-lite" => ["carve.fencedRender.vega-lite"],
+        "fenced-render-wavedrom" => ["carve.fencedRender.wavedrom"],
+        "glossary" => ["carve.glossary"],
+        "heading-level-shift" => ["carve.headingLevelShift"],
+        "heading-numbers" => ["carve.headingNumbers"],
+        "heading-permalinks" => ["carve.headingPermalinks"],
+        "heading-reference" => ["carve.headingReference"],
+        "img-fence" => ["carve.imgFence.img", "carve.imgFence.image"],
+        "index" => ["carve.index"],
+        "link-policy" => ["carve.linkPolicy"],
+        "list-table" => ["carve.listTable"],
+        "math-block" => ["carve.mathBlock"],
+        "semantic-span" => ["carve.semanticSpan"],
+        "smart-quotes" => ["carve.smartQuotes"],
+        "spoiler" => ["carve.spoiler", "carve.spoilerBlock"],
+        "tab-normalize" => ["carve.tabNormalize"],
+        "table-of-contents" => ["carve.toc"],
+        "tabs" => ["carve.tabs"],
+        "toc" => ["carve.tocPlacement"],
+        "wikilinks" => ["carve.wiki"],
+      }.freeze
+
+      # Standard extensions without a standard renderer in the engine.
+      NO_STANDARD_RENDERER = %w[carve.cite].freeze
+
+      # The 0.2 standard extension names for `carve.extensions`, or nil when the
+      # site configured none. 0.1 names are accepted in either spelling.
+      def engine_extensions
+        names = carve_extensions.flat_map do |entry|
+          name = entry.to_s
+          next [name] if name.start_with?("carve.")
+
+          LEGACY_EXTENSIONS.fetch(name.tr("_", "-"), [name])
+        end.uniq
+        names.empty? ? nil : names
+      end
+
+      # The standard renderer for each enabled extension that has one.
+      def engine_renderers(names)
+        return nil if names.nil?
+
+        names.reject { |name| NO_STANDARD_RENDERER.include?(name) }.to_h { |name| [name, "standard"] }
+      end
+
       def render(content, document, root)
+        extensions = engine_extensions
         if root.nil?
           return ::Carve.to_html(content,
-                                 extensions: carve_extensions,
-                                 symbols: carve_symbols)
+                                 extensions: extensions,
+                                 renderers: engine_renderers(extensions),
+                                 symbols: carve_symbols,
+                                 raw_html: raw_html?)
         end
-        # carve-lang added this entry point in 0.1.4; the floor stays lower for sites without includes.
+
         unless ::Carve.respond_to?(:to_html_with_includes)
-          raise ArgumentError,
-                "carve.includes: the installed carve-lang (#{::Carve::VERSION}) has no " \
-                "to_html_with_includes; upgrade it to 0.1.4 or later, or set carve.includes: false"
+          raise ArgumentError, "carve.includes: the installed carve-lang is too old; upgrade it to 0.1.4 or later"
         end
 
         begin
           result = ::Carve.to_html_with_includes(content,
                                                  root: root,
                                                  source_path: document.path,
-                                                 extensions: carve_extensions,
-                                                 symbols: carve_symbols)
+                                                 extensions: extensions,
+                                                 renderers: engine_renderers(extensions),
+                                                 symbols: carve_symbols,
+                                                 raw_html: raw_html?)
         rescue ArgumentError => e
           # A relative root, or a page outside it. Both are decided by the
           # engine; what this adds is the key and the page to look at.
@@ -224,21 +306,33 @@ module Jekyll
       def lint(content, document, root)
         page = document && (document.relative_path || document.path).to_s
         page = "(no page)" if page.nil? || page.empty?
-        options = { extensions: carve_extensions }
+        # 0.2 lint reads no extensions (C2-W-109).
+        options = {}
         options.update(root: root, source_path: document.path) if root
         findings = ::Carve.lint(content, **options)
         offset = front_matter_lines(document)
+        own = root && Pathname.new(document.path.to_s).relative_path_from(Pathname.new(root)).to_s
         findings.each do |finding|
-          next if root && finding[:rule].start_with?("include-")
+          next if root && finding[:code].start_with?("include-")
 
-          where = if finding[:file]
-                    "#{page} (#{finding[:file]}:#{finding[:line]}:#{finding[:column]})"
+          origin = finding[:file]
+          origin = nil if origin == own
+          text = origin ? File.read(File.join(root, origin), encoding: "utf-8") : content
+          line, column = position(text, finding.dig(:range, :startOffset).to_i)
+          where = if origin
+                    "#{page} (#{origin}:#{line}:#{column})"
                   else
-                    "#{page}:#{finding[:line] + offset}:#{finding[:column]}"
+                    "#{page}:#{line + offset}:#{column}"
                   end
-          Jekyll.logger.warn "Carve lint:", "#{where}: #{finding[:rule]}: #{finding[:message]}"
+          Jekyll.logger.warn "Carve lint:", "#{where}: #{finding[:code]}: #{finding[:message]}"
         end
         @lint_findings = lint_findings + findings.size if lint_mode == :strict
+      end
+
+      # A 1-based line and character column for a UTF-8 byte offset in text.
+      def position(text, offset)
+        before = text.b[0, [offset, 0].max].force_encoding("utf-8").scrub("")
+        [before.count("\n") + 1, before.length - (before.rindex("\n") || -1)]
       end
 
       # Lines of YAML front matter above the body, so a finding names the line
@@ -252,12 +346,17 @@ module Jekyll
       end
 
       # Surface what expansion degraded, and record what it read.
+      #
+      # Carve 0.2 names the cause in the code (C2-N-061), so a missing file
+      # and a containment refusal are told apart by the warning itself.
       def report_includes(result, document, root)
         page = document.relative_path || document.path
         Array(result[:warnings]).each do |warning|
+          next unless warning[:code].to_s.start_with?("include-") && warning[:channel] == "parse"
+
           origin = warning[:file]
           where = origin && origin != page ? "#{page} (#{origin})" : page
-          Jekyll.logger.warn "Carve:", "#{where}: #{warning[:rule]}: #{warning[:message]}"
+          Jekyll.logger.warn "Carve:", "#{where}: #{warning[:code]}: #{warning[:message]}"
         end
         suppressed = result[:suppressedWarnings].to_i
         if suppressed.positive?
@@ -265,16 +364,9 @@ module Jekyll
                              "#{page}: #{suppressed} further include warnings suppressed"
         end
         Array(result[:dependencies]).each do |dependency|
-          # A containment refusal and a missing file are the same warning, so a
-          # page cannot probe the filesystem (spec I7). The class that was
-          # collapsed is here, for the build's own log.
-          if dependency[:denial]
-            Jekyll.logger.debug "Carve:",
-                                "#{page}: include #{dependency[:path]}: #{dependency[:denial]}"
-            next
-          end
+          next unless dependency[:read] && dependency[:file]
 
-          register_dependency(document, File.join(root, dependency[:path].to_s))
+          register_dependency(document, File.join(root, dependency[:file].to_s))
         end
       end
 
