@@ -27,5 +27,5 @@ if carve_rb && !carve_rb.empty?
   gem "carve-lang", path: File.expand_path(carve_rb)
 else
   # On next2 the engine is the unreleased Carve 0.2 binding, built from source.
-  gem "carve-lang", git: "https://github.com/markup-carve/carve-rb", ref: "4e7dd5d89984dfe50c383c97bb4c76beabdbdfaf"
+  gem "carve-lang", git: "https://github.com/markup-carve/carve-rb", ref: "80c455fa72b384913f60e2071d3b36550b05d6ff"
 end
