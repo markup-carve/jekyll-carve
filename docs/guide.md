@@ -58,9 +58,9 @@ A 0.1 name is read as its 0.2 counterpart, in either spelling (`math_block` or
 `wikilinks` (`carve.wiki`), `citations` (`carve.references`), `glossary`,
 `index`, `img-fence`, `tab-normalize`, and the navigation extensions
 `heading-permalinks`, `heading-numbers`, `heading-level-shift`,
-`heading-reference`, `table-of-contents` and `toc` (`carve.toc`),
-`external-links`, `autolink` and `link-policy`. `carve.tocPlacement` has no 0.1
-name; give it as written.
+`heading-reference`, `table-of-contents` (`carve.toc`, a table at the top of
+the page), `toc` (`carve.tocPlacement`, a table where a `::: toc` block
+stands), `external-links`, `autolink` and `link-policy`.
 
 The 0.2 Ruby binding enables an extension by name only, so `carve.extensions`
 takes names, not options. In an included file, an extension claims its

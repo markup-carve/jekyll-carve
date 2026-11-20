@@ -97,7 +97,6 @@ RSpec.describe Jekyll::Carve::Converter do
       "heading-numbers" => ["# Hi\n", '<span class="section-number">1</span>'],
       "heading_level_shift" => ["# Hi\n", "<h2>Hi</h2>"],
       "table-of-contents" => ["# Hi\n", '<nav class="toc"'],
-      "toc" => ["# Hi\n", '<nav class="toc"'],
       "external_links" => ["[x](https://example.org)\n", 'target="_blank"'],
       "autolink" => ["See https://example.org\n", '<a href="https://example.org">'],
       "heading-reference" => ["# Hi\n", "<h1>Hi</h1>"],
@@ -109,6 +108,16 @@ RSpec.describe Jekyll::Carve::Converter do
         it "renders it through the engine" do
           expect(converter.convert(source)).to include(visible)
         end
+      end
+    end
+
+    context "with the 0.1 toc extension" do
+      let(:config) { { "carve" => { "extensions" => ["toc"] } } }
+
+      it "places the table where the toc block stands, as 0.1 did" do
+        html = converter.convert("# A\n\n::: toc\n:::\n\n## B\n")
+        expect(html).to match(%r{<h1>A</h1>\s*<nav class="toc"})
+        expect(html).not_to start_with("<nav")
       end
     end
 
