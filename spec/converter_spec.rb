@@ -84,6 +84,14 @@ RSpec.describe Jekyll::Carve::Converter do
       end
     end
 
+    context "with the 0.1 graphviz preset name" do
+      let(:config) { { "carve" => { "extensions" => ["fenced-render-graphviz"] } } }
+
+      it "claims the dot fence as 0.1 did" do
+        expect(converter.convert("``` dot\ndigraph{a->b}\n```\n")).to include('<pre class="graphviz"')
+      end
+    end
+
     context "with an extension the 0.2 engine does not have yet" do
       let(:config) { { "carve" => { "extensions" => ["heading_permalinks"] } } }
 

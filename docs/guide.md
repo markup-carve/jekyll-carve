@@ -54,7 +54,7 @@ name is an `ArgumentError` at build time.
 A 0.1 name is read as its 0.2 counterpart, in either spelling (`math_block` or
 `math-block`): `details`, `spoiler`, `tabs`, `code-group`, `code-callouts`,
 `list-table`, `math-block`, `fenced-render` (`carve.fencedRender.mermaid`),
-`fenced-render-<word>`, `semantic-span`, `smart-quotes`, `color-swatch`,
+`fenced-render-<word>` (graphviz also claims `dot`, plantuml also `puml`), `semantic-span`, `smart-quotes`, `color-swatch`,
 `wikilinks` (`carve.wiki`), `citations` (`carve.references`), `glossary`,
 `index`, `img-fence` and `tab-normalize`. The 0.2 engine has no
 `heading-permalinks`, `heading-numbers`, `heading-level-shift`,
