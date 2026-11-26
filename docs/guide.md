@@ -31,11 +31,9 @@ plugins:
 ```
 
 > [!NOTE]
-> `carve-lang` ships precompiled gems for Linux (x86_64, aarch64, musl), macOS
-> (x86_64, arm64) and Windows (x64 UCRT). On any other platform RubyGems
-> installs the source gem, which compiles a Rust extension and needs a Rust
-> toolchain (`cargo`), libclang and Ruby development headers. See the carve-rb
-> README for build notes.
+> On `next2`, `carve-lang` is the unreleased Carve 0.2 binding, pinned in
+> `Gemfile` to a carve-rb `next2` commit. Bundler compiles its Rust extension,
+> which needs Rust 1.88 or newer (`cargo`), libclang and Ruby development headers.
 
 ## Configuration
 
@@ -44,15 +42,35 @@ Carve engine options are read from `_config.yml` under the `carve` key:
 ```yaml
 carve:
   extensions:
-    - heading_permalinks
-    - math_block
-    - autolink
+    - carve.details
+    - carve.mathBlock
+    - carve.fencedRender.mermaid
 ```
 
-`carve.extensions` is an array of opt-in Carve extension names (Strings or
-hyphenated/underscored forms, passed straight through to the engine). When the
-key is absent, no extensions are enabled. The recognized extensions are listed
-in `Carve::EXTENSIONS`; an unknown name raises `ArgumentError` at build time.
+`carve.extensions` lists Carve 0.2 standard extensions, each rendered with its
+standard renderer. When the key is absent, no extensions are enabled. An unknown
+name is an `ArgumentError` at build time.
+
+A 0.1 name is read as its 0.2 counterpart, in either spelling (`math_block` or
+`math-block`): `details`, `spoiler`, `tabs`, `code-group`, `code-callouts`,
+`list-table`, `math-block`, `fenced-render` (`carve.fencedRender.mermaid`),
+`fenced-render-<word>` (graphviz also claims `dot`, plantuml also `puml`), `semantic-span`, `smart-quotes`, `color-swatch`,
+`wikilinks` (`carve.wiki`), `citations` (`carve.references`), `glossary`,
+`index`, `img-fence`, `tab-normalize`, and the navigation extensions
+`heading-permalinks`, `heading-numbers`, `heading-level-shift`,
+`heading-reference`, `table-of-contents` (`carve.toc`, a table at the top of
+the page), `toc` (`carve.tocPlacement`, a table where a `::: toc` block
+stands), `external-links`, `autolink` and `link-policy`.
+
+The 0.2 Ruby binding enables an extension by name only, so `carve.extensions`
+takes names, not options. In an included file, an extension claims its
+construct only when the including page uses it too
+([carve-rs#4481](https://github.com/markup-carve/carve-rs/issues/4481)).
+
+### `carve.raw_html`
+
+Carve 0.2 escapes `=html` blocks and spans by default. `raw_html: true` emits
+them verbatim; set it only when the site's own authors write every page.
 
 ### `carve.symbols` - what `:smile:` renders as
 
@@ -143,9 +161,6 @@ carve:
   includes: true
 ```
 
-Includes need carve-lang 0.1.4 or later. On an older engine, a page that
-reaches them stops the build with a message naming the upgrade.
-
 Paths resolve relative to the file that wrote them, and nothing resolves outside
 the containment root. The root is Jekyll's source directory unless
 `carve.include_root` names another one, and an include that would leave it is
@@ -163,9 +178,10 @@ ran from, which is not a root anyone chose. The page being rendered has to sit
 inside the root too.
 
 A target that cannot be read is reported against the page that asked for it, and
-the directive is left as written. The message does not say whether the file was
-missing or refused by containment: both report `include-unresolved`, so a page
-cannot be used to probe the filesystem. The class is at `--verbose`.
+the directive is left as written. The code names the cause: `include-not-found`,
+`include-outside-root`, `include-cycle` and the other codes of Carve 0.2
+(C2-N-061). A directive inside a sentence is text in 0.2 and is never expanded
+(C2-N-002).
 
 Under `jekyll serve`, a page is rebuilt when a target it read changes, because
 every resolved target is registered with Jekyll's regeneration path.
@@ -209,20 +225,19 @@ carve:
 Every page is linted and reported first, then `jekyll build` stops with an
 error before writing the site.
 
-The linter reads the same `carve.extensions` the pages render with. With
-`carve.includes` on it also lints each included Carve file, and a finding there
+The 0.2 linter reads no extensions (C2-W-109), so `carve.extensions` does not
+change what it reports. With `carve.includes` on it also lints each included Carve file, and a finding there
 names that file: `index.crv (parts/intro.crv:3:1): ...`. Include warnings such
-as `include-unresolved` are logged once, by the include pass, but count toward
-`strict`.
+as `include-not-found` are logged once, by the include pass, but count toward
+`strict`. Without `carve.includes`, each directive is a finding,
+`include-no-resolver`.
 
 A newer engine can report findings an older one did not, so a site that passes
-`strict` today can fail after a carve-lang upgrade. carve-lang 0.1.14
-reports a `---` thematic break as `thematic-break-spelling` (write `***`) and the
-glued alignment markers `|=<`, `|=~`, `|=>` as `deprecated-cell-alignment`
-(write `|={<}`, `|={~}`, `|={>}`). Both still render as before.
-
-`carve.lint` needs carve-lang 0.1.11 or later, the first engine that exposes the
-linter. That is why it is this gem's floor.
+`strict` today can fail after an engine upgrade. The engine reports a `---`
+thematic break as `thematic-break-spelling` (write `***`) and the glued
+alignment markers `|=<`, `|=~`, `|=>` as `deprecated-cell-alignment` (write
+`|={<}`, `|={~}`, `|={>}`). In Carve 0.2 a glued marker is cell text (U-056), and
+`caption-looking-paragraph` is on by default.
 
 ## Usage
 

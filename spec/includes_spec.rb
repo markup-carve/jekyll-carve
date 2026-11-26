@@ -129,21 +129,23 @@ RSpec.describe "Carve includes" do
         .not_to include("UNCONTAINED BODY")
     end
 
+    # 0.1 spec I7 collapsed both causes into include-unresolved; Carve 0.2
+    # reports one code per cause (C2-N-061).
     it "reports one warning for a refusal and for a missing file alike" do
       messages = capture_warnings do
         render("index.crv", "{{ ../outside/secret.crv }}\n\n{{ nope.crv }}\n")
       end
       expect(messages.length).to eq(2)
-      expect(messages).to all(include("include-unresolved"))
+      expect(messages.join).to include("include-outside-root").and include("include-not-found")
     end
 
     it "keeps the denial class off the page warning" do
       messages = capture_warnings { render("index.crv", "{{ ../outside/secret.crv }}\n") }
-      expect(messages.join).not_to include("outside-root")
+      expect(messages.join).to include("include-outside-root")
     end
 
     it "still reports the denial class for the build log" do
-      messages = capture_debug do
+      messages = capture_warnings do
         render("index.crv", "{{ ../outside/secret.crv }}\n\n{{ nope.crv }}\n")
       end
       expect(messages.join).to include("outside-root")
@@ -153,7 +155,7 @@ RSpec.describe "Carve includes" do
     it "names the page that asked" do
       messages = capture_warnings { render("guide.crv", "{{ nope.crv }}\n") }
       expect(messages.first).to include("guide.crv")
-      expect(messages.first).to include("include-unresolved")
+      expect(messages.first).to include("include-not-found") # C2-N-061
     end
 
     it "reports no host path" do
@@ -173,11 +175,13 @@ RSpec.describe "Carve includes" do
       expect(render("index.crv", "{{ sub/frag.crv }}\n")).to include("inner text")
     end
 
+    # C2-N-002: there is no inline include in 0.2, so each directive is on its
+    # own block line.
     it "degrades a cycle instead of hanging" do
-      write("site/a.crv", "A {{ b.crv }}\n")
-      write("site/b.crv", "B {{ a.crv }}\n")
+      write("site/a.crv", "A\n\n{{ b.crv }}\n")
+      write("site/b.crv", "B\n\n{{ a.crv }}\n")
       messages = capture_warnings { @html = render("index.crv", "{{ a.crv }}\n") }
-      expect(@html).to include("A B")
+      expect(@html).to include("<p>A</p>").and include("<p>B</p>")
       expect(messages.join).to include("include-cycle")
     end
 
