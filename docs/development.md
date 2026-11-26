@@ -9,7 +9,7 @@ bundle exec rspec   # run the converter unit tests
 
 ### Which engine you are testing against
 
-On `next2`, `Gemfile` pins `carve-lang` to a carve-rb `next2` commit (the
+`Gemfile` pins `carve-lang` to a carve-rb commit (the
 unreleased Carve 0.2 binding, compiled by Bundler), and
 `script/verify_engine_pin.rb` refuses when the Gemfile, the resolved bundle and
 the loaded library disagree. CI runs it before the suite:

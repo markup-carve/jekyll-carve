@@ -200,7 +200,7 @@ module Jekyll
         return if ::Carve.respond_to?(:call)
 
         raise ArgumentError,
-              "jekyll-carve needs the Carve 0.2 carve-lang (carve-rb next2); " \
+              "jekyll-carve needs the Carve 0.2 carve-lang (carve-rb main); " \
               "the installed carve-lang #{::Carve::VERSION} is a 0.1 engine"
       end
 

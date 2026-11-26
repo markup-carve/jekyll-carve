@@ -59,7 +59,7 @@ Gem::Specification.new do |spec|
   # A range is the right shape for a consumer and the wrong one for a test run,
   # so `Gemfile` pins a carve-rb revision for development instead. Those are
   # different engines on purpose; see that file.
-  # On next2 the Gemfile pins the unreleased Carve 0.2 binding by git commit;
+  # The Gemfile pins the unreleased Carve 0.2 binding by git commit;
   # this range comes back to a 0.2 release when carve-lang ships one.
   spec.add_dependency "carve-lang", ">= 0.1.11", "< 0.2.0"
   spec.add_dependency "jekyll", ">= 4.0"
