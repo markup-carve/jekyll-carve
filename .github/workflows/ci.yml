@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, next2]
+    branches: [main]
   pull_request:
 
 # Jobs carry an explicit timeout-minutes: without one GitHub applies a
@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # On next2 carve-lang is a git pin, so bundler compiles its Rust extension.
+      # carve-lang is a git pin, so bundler compiles its Rust extension.
       # rb-sys bindgen needs a libclang with its resource headers (stdbool.h);
       # without them Ruby 3.2 headers fail on `bool`. Same probe as carve-rb.
       - name: Find a complete libclang for the native extension
