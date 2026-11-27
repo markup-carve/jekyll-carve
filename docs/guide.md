@@ -62,6 +62,9 @@ A 0.1 name is read as its 0.2 counterpart, in either spelling (`math_block` or
 the page), `toc` (`carve.tocPlacement`, a table where a `::: toc` block
 stands), `external-links`, `autolink` and `link-policy`.
 
+`heading-level-shift` is no extension in 0.2: it sets the core render option
+`heading_shift: 1`, one level deeper, as the 0.1 extension did (C2-H-208).
+
 The 0.2 Ruby binding enables an extension by name only, so `carve.extensions`
 takes names, not options. In an included file, an extension claims its
 construct only when the including page uses it too

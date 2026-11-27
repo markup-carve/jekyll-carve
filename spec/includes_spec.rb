@@ -54,6 +54,23 @@ RSpec.describe "Carve includes" do
     Jekyll::Carve::Rendering.clear
   end
 
+  describe "the 0.1 heading-level-shift name" do
+    let(:config) do
+      { "source" => File.join(@root, "site"),
+        "carve" => { "includes" => true, "extensions" => ["heading-level-shift"] } }
+    end
+
+    it "shifts headings, or names the binding that cannot" do
+      takes_shift = ::Carve.method(:render_with_includes).parameters.any? { |_, name| name == :heading_shift }
+      if takes_shift
+        expect(render("index.crv", "# Hi\n")).to include("<h2")
+      else
+        expect { render("index.crv", "# Hi\n") }
+          .to raise_error(ArgumentError, /heading-level-shift with carve\.includes/)
+      end
+    end
+  end
+
   describe "the switch" do
     it "leaves a directive literal while includes are off" do
       plain = Jekyll::Carve::Converter.new("source" => File.join(root, "site"))

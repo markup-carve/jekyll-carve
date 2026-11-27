@@ -224,7 +224,6 @@ module Jekyll
         "fenced-render-vega-lite" => ["carve.fencedRender.vega-lite"],
         "fenced-render-wavedrom" => ["carve.fencedRender.wavedrom"],
         "glossary" => ["carve.glossary"],
-        "heading-level-shift" => ["carve.headingLevelShift"],
         "heading-numbers" => ["carve.headingNumbers"],
         "heading-permalinks" => ["carve.headingPermalinks"],
         "heading-reference" => ["carve.headingReference"],
@@ -246,12 +245,44 @@ module Jekyll
       # Standard extensions without a standard renderer in the engine.
       NO_STANDARD_RENDERER = %w[carve.cite].freeze
 
+      # 0.2 made the 0.1 `heading-level-shift` extension the core render option
+      # `headingShift` (C2-H-208); the 0.1 extension shifted by one level.
+      LEGACY_HEADING_SHIFT = "heading-level-shift"
+
+      # The `heading_shift:` render option, or nil when the site asked for none.
+      def heading_shift
+        1 if carve_extensions.any? { |entry| entry.to_s.tr("_", "-") == LEGACY_HEADING_SHIFT }
+      end
+
+      # The engine options both render paths share.
+      def render_options(extensions)
+        options = { extensions: extensions,
+                    renderers: engine_renderers(extensions),
+                    symbols: carve_symbols,
+                    raw_html: raw_html?, }
+        shift = heading_shift
+        options[:heading_shift] = shift if shift
+        options
+      end
+
+      # Whether the binding's include render accepts the keyword. Checked up
+      # front, so the rescue below does not report a missing keyword as a root
+      # problem.
+      def include_render_takes?(keyword)
+        return true unless ::Carve.respond_to?(:render_with_includes)
+
+        ::Carve.method(:render_with_includes).parameters.any? do |kind, name|
+          kind == :keyrest || ([:key, :keyreq].include?(kind) && name == keyword)
+        end
+      end
+
       # The 0.2 standard extension names for `carve.extensions`, or nil when the
       # site configured none. 0.1 names are accepted in either spelling.
       def engine_extensions
         names = carve_extensions.flat_map do |entry|
           name = entry.to_s
           next [name] if name.start_with?("carve.")
+          next [] if name.tr("_", "-") == LEGACY_HEADING_SHIFT
 
           LEGACY_EXTENSIONS.fetch(name.tr("_", "-"), [name])
         end.uniq
@@ -268,25 +299,25 @@ module Jekyll
       def render(content, document, root)
         extensions = engine_extensions
         if root.nil?
-          return ::Carve.to_html(content,
-                                 extensions: extensions,
-                                 renderers: engine_renderers(extensions),
-                                 symbols: carve_symbols,
-                                 raw_html: raw_html?)
+          return ::Carve.to_html(content, **render_options(extensions))
         end
 
         unless ::Carve.respond_to?(:to_html_with_includes)
           raise ArgumentError, "carve.includes: the installed carve-lang is too old; upgrade it to 0.1.4 or later"
         end
 
+        options = render_options(extensions)
+        if options.key?(:heading_shift) && !include_render_takes?(:heading_shift)
+          raise ArgumentError,
+                "carve.extensions: heading-level-shift with carve.includes needs a carve-lang " \
+                "whose include render takes heading_shift:; the installed #{::Carve::VERSION} does not"
+        end
+
         begin
           result = ::Carve.to_html_with_includes(content,
                                                  root: root,
                                                  source_path: document.path,
-                                                 extensions: extensions,
-                                                 renderers: engine_renderers(extensions),
-                                                 symbols: carve_symbols,
-                                                 raw_html: raw_html?)
+                                                 **options)
         rescue ArgumentError => e
           # A relative root, or a page outside it. Both are decided by the
           # engine; what this adds is the key and the page to look at.

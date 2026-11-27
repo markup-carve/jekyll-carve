@@ -8,19 +8,33 @@ moves therefore get an entry of their own.
 
 ## [Unreleased]
 
-### Changed
+## [0.2.0] - 2026-11-27
 
-- Port to Carve 0.2: pages render and lint through the carve-rb `next2` Carve
-  0.2 binding, pinned by commit in `Gemfile`. HTML follows 0.2 (see the spec's
-  `UPGRADING.md`).
+jekyll-carve renders through Carve 0.2 and needs carve-lang 0.2. The 0.1
+extension names keep working and map to the 0.2 standard extensions.
+
+### Breaking
+
+- Port to Carve 0.2: pages render and lint through the carve-lang 0.2
+  binding, and the plugin requires carve-lang `>= 0.2.0, < 0.3.0`. HTML
+  follows 0.2 (see the spec's `UPGRADING.md`) (#42).
 - Raw HTML is escaped by default; the new `carve.raw_html: true` emits it
-  verbatim.
-- A non-empty `carve.extensions` is refused until the engine can register
-  extensions (markup-carve/carve-rs#4329).
+  verbatim (#42).
 - Include warnings name the cause (`include-not-found`, `include-outside-root`,
   ...) instead of one `include-unresolved`, and the 0.1 denial line at
   `--verbose` is gone. Without `carve.includes`, lint reports each directive as
-  `include-no-resolver`.
+  `include-no-resolver` (#42, #44).
+
+### Changed
+
+- `carve.extensions` enables the 0.2 standard extensions. Each 0.1 name the
+  0.2 engine has maps to its `carve.*` counterpart, the navigation extensions
+  included, and lint ignores them (#46, #48).
+- The `fenced-render-graphviz` and `fenced-render-plantuml` presets claim both
+  of their 0.1 fence words (`dot` and `graphviz`, `plantuml` and `puml`)
+  (#47).
+- `heading-level-shift` is no 0.2 extension: the 0.1 name now sets the core
+  render option `heading_shift: 1`, the shift the 0.1 extension applied (#51).
 
 ## [0.1.5] - 2026-11-12
 

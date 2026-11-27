@@ -46,9 +46,11 @@ RSpec.describe "the engine release after carve-lang 0.1.13" do
       allow(Jekyll.logger).to receive(:warn) { |topic, message| warnings << "#{topic} #{message}" }
     end
 
-    it "reports a --- thematic break as thematic-break-spelling" do
+    # C2-W-156, ruling on carve#6499: rules that only help move from 0.1 are
+    # migration notices, off by default, so a valid 0.2 page lints clean.
+    it "keeps the thematic-break-spelling migration notice off by default" do
       converter.convert("a\n\n---\n\nb\n")
-      expect(warnings.join("\n")).to include("thematic-break-spelling")
+      expect(warnings).to be_empty
     end
 
     it "accepts the canonical *** break" do
@@ -56,15 +58,15 @@ RSpec.describe "the engine release after carve-lang 0.1.13" do
       expect(warnings).to be_empty
     end
 
-    it "reports a glued alignment marker as deprecated-cell-alignment" do
+    it "keeps the deprecated-cell-alignment migration notice off by default" do
       converter.convert("|=< A |\n| a |\n")
-      expect(warnings.join("\n")).to include("deprecated-cell-alignment")
+      expect(warnings).to be_empty
     end
 
-    it "fails a strict build on the new rule" do
+    it "does not fail a strict build on a migration notice" do
       strict = Jekyll::Carve::Converter.new({ "carve" => { "lint" => "strict" } })
       strict.convert("a\n\n---\n\nb\n")
-      expect { strict.check_lint! }.to raise_error(Jekyll::Errors::FatalException)
+      expect { strict.check_lint! }.not_to raise_error
     end
   end
 end
