@@ -33,6 +33,8 @@ extension names keep working and map to the 0.2 standard extensions.
 - The `fenced-render-graphviz` and `fenced-render-plantuml` presets claim both
   of their 0.1 fence words (`dot` and `graphviz`, `plantuml` and `puml`)
   (#47).
+- `heading-level-shift` is no 0.2 extension: the 0.1 name now sets the core
+  render option `heading_shift: 1`, the shift the 0.1 extension applied (#51).
 
 ## [0.1.5] - 2026-11-12
 
